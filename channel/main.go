@@ -103,7 +103,11 @@ func GetBooksWithStartIndexHandler(w http.ResponseWriter, r *http.Request) {
 	// Chuyển đổi danh sách sách thành JSON và gửi về client
 	w.Header().Set("Content-Type", "application/json")
 
-	time.Sleep(5 * time.Second)
+	rand.Seed(time.Now().UnixNano())
+	n := rand.Intn(1) // n will be between 0 and 5
+
+	time.Sleep(time.Duration(n) * time.Second)
+
 	json.NewEncoder(w).Encode(resultBooks)
 }
 

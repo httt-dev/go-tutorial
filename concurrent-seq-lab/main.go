@@ -20,9 +20,9 @@ type Book struct {
 var rowIndex = 0
 var dataChannel chan []Book
 var endTaskChan chan bool
-var MAX_TASKS = 10
-var MAX_ROWS = 100
-var TOTAL_ROWS = 10000
+var MAX_TASKS = 5
+var MAX_ROWS = 10
+var TOTAL_ROWS = 200
 var m sync.Mutex
 
 func fetchData(page int, wg *sync.WaitGroup, dataChannel chan []Book) {
@@ -48,6 +48,7 @@ func fetchData(page int, wg *sync.WaitGroup, dataChannel chan []Book) {
 }
 
 func getResultBlock(from int, count int, dataChannel chan []Book) {
+
 START:
 	for {
 		url := fmt.Sprintf("%s%d", apiEndpoint, from)
@@ -63,9 +64,13 @@ START:
 				}
 
 				for {
-					if rowIndex == from {
+					m.Lock()
+					row := rowIndex
+					m.Unlock()
+					if row == from {
 						break
 					}
+
 				}
 
 				dataChannel <- books
@@ -91,25 +96,43 @@ START:
 func main() {
 
 	dataChannel = make(chan []Book, 100000) // Adjust the buffer size as needed
+	endTaskChan = make(chan bool, MAX_TASKS)
+	done := make(chan bool)
 
 	go func() {
+		// defer func() {
+		// 	fmt.Println("read finished")
+		// 	done <- true
+		// }()
+
 		for books := range dataChannel {
 			for _, book := range books {
 				// record := []string{book.ID, book.Name, book.JAN, book.Publisher}
 				fmt.Println("Read data from channel", book.ID)
+				time.Sleep(20 * time.Millisecond) //Mi) //
 			}
-		}
 
+		}
+		fmt.Println("read finished")
+		done <- true
 	}()
 
 	for i := 0; i < MAX_TASKS; i++ {
 
+		fmt.Println("task", i)
+
 		go func(startLine int, execOrder int) {
+
+			fmt.Println("startLine ", startLine)
+
 			defer func() {
+				fmt.Println("endTaskChan")
 				endTaskChan <- true
+
 			}()
 
 			if startLine > TOTAL_ROWS {
+				fmt.Println("startLine > TOTAL_ROWS")
 				return
 			}
 
@@ -126,11 +149,31 @@ func main() {
 			getResultBlock(from, count, dataChannel)
 
 			from = from + MAX_ROWS*MAX_TASKS
+
 			if from < TOTAL_ROWS {
 				goto GET_NEXT
 			}
+
 		}(i*MAX_ROWS, i)
 	}
 
-	time.Sleep(time.Second * 100)
+	// time.Sleep(time.Second * 100)
+
+	// Chờ tất cả goroutine hoàn thành
+	for i := 0; i < MAX_TASKS; i++ {
+		fmt.Println("read endTaskChan")
+		<-endTaskChan
+	}
+
+	// for i := range endTaskChan {
+	// 	fmt.Println("read endTaskChan", i)
+	// }
+
+	close(endTaskChan)
+
+	close(dataChannel)
+
+	<-done
+
+	fmt.Println("finished")
 }
