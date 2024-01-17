@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=\, initial-scale=1.0" />
+        <title>Pass data to YHTML template</title>
+    </head>
+    <body>
+        {{/* this is a comment */}}
+        <h1>Product : {{.}}</h1>
+
+        <ul>
+            <h2>Product Infomation</h2>
+            <li>{{.Name}} Id#:{{.ProdID}}</li>
+            <li>{{.Cost}}</li>
+            <li>
+                Specs
+                <ul>
+                    <li>Size : {{.Specs.Size}}</li>
+                    <li>Weight : {{.Specs.Weight}}</li>
+                    <li>Description : {{.Specs.Desc}}</li>
+                </ul>
+            </li>
+        </ul>
+    </body>
+</html>
