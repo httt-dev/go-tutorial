@@ -1,0 +1,29 @@
+syntax="proto3";
+
+package httt.dev.pcbook;
+
+// import "proto/memory_message.proto";
+import "memory_message.proto";
+
+// them tuy chon go_package >> phu hop voi ten module
+// bien dich cmd >>  protoc -I=proto --go_out=paths=source_relative:pb proto/processor_message.proto
+option go_package = "httt.dev/pcbook/pb";
+
+
+message CPU{
+    string brand = 1;
+    string name = 2;
+    uint32 number_cores = 3;
+    uint32 number_threads = 4;
+    double min_ghz = 5;
+    double max_ghz = 6; 
+}
+
+message GPU{
+    string brand =1;
+    string name = 2;
+    double min_ghz=3;
+    double max_ghz = 4;
+    // Memory
+    Memory memory = 5;
+}
