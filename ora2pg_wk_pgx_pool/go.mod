@@ -22,6 +22,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.2
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/planetscale/vtprotobuf v0.6.0 // indirect
+	github.com/sijms/go-ora/v2 v2.8.24
 	golang.org/x/exp v0.0.0-20250210185358-939b2ce775ac // indirect
 	google.golang.org/protobuf v1.36.5 // indirect
 )

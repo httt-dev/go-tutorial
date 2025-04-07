@@ -428,6 +428,9 @@ func main() {
     
 	tableMappings := parseTableMappings(tableNames)
     tbl, err := json.MarshalIndent(tableMappings, "", "  ")
+    if err != nil {
+		log.Fatalf("Error parsing table mapping: %v", err)
+	}
     log.Printf("List of tables to copy:\n%v\n", string(tbl))
 
     partitionBy := os.Getenv("PARTITION_BY")
