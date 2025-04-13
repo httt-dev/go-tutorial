@@ -872,13 +872,13 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
                 for i := 0; i < colCount; i++ {
                     dbType := colTypes[i].DatabaseTypeName()
                     switch dbType {
-                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
+                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT", "CLOB":  //CLOB??
                         var s sql.NullString
                         scanArgs[i] = &s // use sql.NullString to handle NULL values
-                    case "CLOB":
-                        var raw interface{}
-                        scanArgs[i] = &raw
-                        hasClob = true
+                        if dbType == "CLOB" {
+                            hasClob = true
+                        }
+                    
                     default:
                         var raw interface{}
                         scanArgs[i] = &raw
