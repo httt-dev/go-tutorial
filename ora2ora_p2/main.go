@@ -15,21 +15,33 @@ import (
 	"sync"
 	"time"
 
+	"github.com/godror/godror"
+	_ "github.com/godror/godror" // Driver Oracle
 	"github.com/joho/godotenv"
 	go_ora "github.com/sijms/go-ora/v2"
 )
 
 var(
 	expectedDBName string
-    srcOracleDSN string
+    oracleDriverName  string
+    srcOracleDSN  string
+    srcOracleDSNGodror  string
     dstOracleDSN  string
-    bulkInsertMode string
 )
 
+type ColumnInfo struct {
+	Name     string
+	DataType string
+}
+
 const (
-	CHAN_QUEUE = 50_000  // 50_000
-	BATCH_SIZE = 50_000  // 50_000
-	LOG_READED_ROWS =  100_000
+    FETCHED_NUM_ROWS = 50
+    // Constants for database connection
+    ORACLE_GODROR_DRIVER_NAME = "godror"
+
+	CHAN_QUEUE = 50
+	BATCH_SIZE = 50
+	LOG_READED_ROWS =  50
 )
 
 func init() {
@@ -75,10 +87,9 @@ func printMemUsage(tag string) {
 		tag, m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024, m.NumGC)
 }
 
-func insertBatchBulkMode(dstOracleDSN string, tableName string, columns []string, batch [][]interface{}) error {
+func insertBatchNew(db *sql.DB, tableName string, columns []string, batch [][]interface{}) error {
 
-    // if tableName != "MS_JAN" {
-    //     fmt.Println("test mode ")
+    // if tableName != "TEST_MS_JAN" {
     //     return nil
     // }
     
@@ -144,6 +155,7 @@ func insertBatchBulkMode(dstOracleDSN string, tableName string, columns []string
 
 
 func insertBatch(db *sql.DB, tableName string, columns []string, batch [][]interface{}) error {
+    
     ctx := context.Background()
 
     // Create the INSERT statement with placeholders
@@ -198,58 +210,33 @@ func insertBatch(db *sql.DB, tableName string, columns []string, batch [][]inter
 }
 
 // Function to get column data types from a table
-func getColumnTypes(db *sql.DB, tableName string) ([]interface{}, error) {
+func getTableColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
 	query := `
-		SELECT COLUMN_NAME, DATA_TYPE, DATA_PRECISION, DATA_SCALE
-		FROM ALL_TAB_COLUMNS
-		WHERE TABLE_NAME = :1`
-	
-	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tableName))
+		SELECT column_name, data_type
+		FROM user_tab_columns
+		WHERE table_name = :1
+		ORDER BY column_id`
+	rows, err := db.Query(query, strings.ToUpper(tableName))
 	if err != nil {
-		return nil, fmt.Errorf("error querying column types: %w", err)
+		return nil, fmt.Errorf("error querying columns: %w", err)
 	}
 	defer rows.Close()
 
-	var columnTypes []interface{}
+	var columns []ColumnInfo
 	for rows.Next() {
-		var columnName, dataType string
-		var dataPrecision, dataScale sql.NullInt64 // Can be NULL if not applicable
-
-		if err := rows.Scan(&columnName, &dataType, &dataPrecision, &dataScale); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
+		var col ColumnInfo
+		if err := rows.Scan(&col.Name, &col.DataType); err != nil {
+			return nil, fmt.Errorf("error scanning column info: %w", err)
 		}
-
-		// Handle NUMBER type
-		if strings.ToUpper(dataType) == "NUMBER" {
-			if dataScale.Valid && dataScale.Int64 > 0 { // Has decimal part → float64
-				columnTypes = append(columnTypes, float64(0))
-			// } else if dataPrecision.Valid && dataPrecision.Int64 < 10 { // Số nguyên <= 10 chữ số → int
-			// 	columnTypes = append(columnTypes, int(0))
-			} else { // Số lớn hơn → int64
-				columnTypes = append(columnTypes, int64(0))
-			}
-			continue
-		}
-
-		// Handle other data types
-		switch strings.ToUpper(dataType) {
-		case "VARCHAR2", "CHAR", "NVARCHAR2", "CLOB":
-			columnTypes = append(columnTypes, "")
-		case "DATE", "TIMESTAMP", "TIMESTAMP(6)":
-			columnTypes = append(columnTypes, time.Time{})
-		case "BLOB", "RAW":
-			columnTypes = append(columnTypes, []byte{})
-		default:
-			columnTypes = append(columnTypes, nil)
-		}
+		columns = append(columns, col)
 	}
-
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
+		return nil, fmt.Errorf("error iterating column info: %w", err)
 	}
-
-	return columnTypes, nil
+	if len(columns) == 0 {
+		return nil, fmt.Errorf("no columns found for table %s", tableName)
+	}
+	return columns, nil
 }
 
 // Hàm escapeString để xử lý chuỗi tránh SQL Injection
@@ -277,14 +264,8 @@ func formatValue(value interface{}) string {
 
 // insertBatchWithFallback 
 func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}) error {
-    var err error
-    // Check if bulk insert mode is enabled
-    if bulkInsertMode == "1" {
-        err = insertBatchBulkMode(dstOracleDSN, tableName, columns, batch)
-    }else{
-        err = insertBatch(db, tableName, columns, batch)    
-    }
-    
+    err := insertBatch(db, tableName, columns, batch)
+
     if err == nil {
         return nil
     }
@@ -397,6 +378,44 @@ func createOraclePool(dsn string) (*sql.DB, error) {
     return db, nil
 }
 
+func createOraclePoolUseGodrorDriver(dsn string, timezone string) (*sql.DB, error) {
+	// parsing DSN
+	params, err := godror.ParseDSN(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("error when parsing DSN: %w", err)
+	}
+
+	// convert timezone to *time.Location
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("error load timezone %s: %w", timezone, err)
+	}
+	params.Timezone = loc 
+
+	// Set pooling options (if needed)
+	params.SessionTimeout = 60 * time.Second
+	params.WaitTimeout = 30 * time.Second
+	params.MaxSessions = 20
+	params.MinSessions = 5
+	params.SessionIncrement = 2
+	params.Charset = "UTF-8"
+	
+	// Set pooling options (if needed)
+	db, err := sql.Open("godror", params.StringWithPassword())
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to Oracle: %w", err)
+	}
+
+	// Test the connection
+	if err = db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("Successfully connected to Oracle. %w", err)
+	}
+
+	return db, nil
+}
+
+
 // Helper function to extract host and service from the DSN
 func extractHostAndService(dsn string) (string, string) {
     parts := strings.Split(dsn, "@")
@@ -495,7 +514,9 @@ func extractTableName(table string) string {
     return ""
 }
 
+
 func main() {
+    var err error
     // Set up logging
     setupLogging()
 
@@ -505,16 +526,14 @@ func main() {
     }()
 
     // Retrieve required environment variables
+    oracleDriverName = os.Getenv("ORACLE_DRIVER")
     srcOracleDSN = os.Getenv("SRC_ORACLE_DSN")
+    srcOracleDSNGodror = os.Getenv("SRC_ORACLE_DSN_GODROR")
     dstOracleDSN = os.Getenv("DST_ORACLE_DSN")
+
     expectedDBName = os.Getenv("DESTINATION_DB_NAME")
-    bulkInsertMode = os.Getenv("BULK_INSERT_MODE")
 
-    if bulkInsertMode == "" {
-        bulkInsertMode = "0"
-    }
-
-    if srcOracleDSN == "" || dstOracleDSN == "" || expectedDBName == "" {
+    if (oracleDriverName == "" && srcOracleDSN == "") || dstOracleDSN == "" || expectedDBName == "" {
         log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_ORACLE_DSN, DESTINATION_DB_NAME")
     }
 
@@ -538,15 +557,24 @@ func main() {
     } else {
         filterWhere = " AND " + filterWhere
     }
-
+    
     // Connect to Source Oracle
-    srcOracleDB, err := createOraclePool(srcOracleDSN)
-    if err != nil {
-        log.Fatalf("Error creating SOURCE Oracle pool: %v", err)
+    var srcOracleDB *sql.DB
+    if oracleDriverName == ORACLE_GODROR_DRIVER_NAME {
+        // Connect to Source Oracle using Godror driver
+        srcOracleDB, err = createOraclePoolUseGodrorDriver(srcOracleDSNGodror,"Asia/Tokyo")
+        if err != nil {
+            log.Fatalf("Error creating SOURCE Oracle pool using Godror driver: %v", err)
+        }
+    }else{
+        srcOracleDB, err = createOraclePool(srcOracleDSN)
+        if err != nil {
+            log.Fatalf("Error creating SOURCE Oracle pool: %v", err)
+        }
     }
     defer srcOracleDB.Close()
 
-    // Connect to Destination Oracle
+    // Connect to DESTINATION Oracle
     dstOracleDB, err := createOraclePool(dstOracleDSN)
     if err != nil {
         log.Fatalf("Error creating DESTINATION Oracle pool: %v", err)
@@ -570,7 +598,7 @@ func main() {
         }(dstTable)
 
 		// Perform the data migration process for the current table
-        err = migrateTable(srcOracleDB, dstOracleDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
+        err = migrateTable(srcOracleDB, dstOracleDB, oracleDriverName , srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
         if err != nil {
             log.Printf("Error processing table source=%s, destination=%s: %v", srcTable, dstTable, err)
             continue
@@ -582,18 +610,29 @@ func main() {
 }
 
 
-func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
-	// Retrieve column names from Oracle
-    dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
-    dummyRows, err := srcDB.Query(dummyQuery)
-    if err != nil {
-        log.Fatalf("Error executing dummy query: %v", err)
-    }
-    columns, err := dummyRows.Columns()
-    if err != nil {
-        log.Fatalf("Error getting columns: %v", err)
-    }
-    dummyRows.Close()
+func migrateTable(srcDB, dstDB *sql.DB, oracleDriverName string, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
+
+    columnsInfo, err := getTableColumns(srcDB, srcTable)
+	if err != nil {
+		return fmt.Errorf("error getting columns for %s: %w", srcTable, err)
+	}
+
+	colNames := make([]string, len(columnsInfo))
+	for i, col := range columnsInfo {
+		colNames[i] = col.Name
+	}
+
+	// // Retrieve column names from Oracle
+    // dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
+    // dummyRows, err := srcDB.Query(dummyQuery)
+    // if err != nil {
+    //     log.Fatalf("Error executing dummy query: %v", err)
+    // }
+    // columns, err := dummyRows.Columns()
+    // if err != nil {
+    //     log.Fatalf("Error getting columns: %v", err)
+    // }
+    // dummyRows.Close()
 
 
 
@@ -615,7 +654,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
     for i := 0; i < numWorkers; i++ {
         workerWg.Add(1)
         // go worker(i, dstDB, extractTableName, columns, nil, dataChan, &workerWg)
-        go worker(i, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg)
+        go worker(i, dstDB, extractTableName, colNames, nil, dataChan, errorChan, &workerWg)
     }
 
     // Process data from Oracle in partitioned mode
@@ -625,7 +664,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
         var totalRows int64
         countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", srcTable, filterWhere)
         if err := srcDB.QueryRow(countQuery).Scan(&totalRows); err != nil {
-            log.Fatalf("Error retrieving total rows %v from query: %v", err, countQuery)
+            log.Fatalf("Error retrieving total rows: %v", err)
             migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
         }
         log.Printf("Total rows: %d", totalRows)
@@ -637,7 +676,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
             rangeSize++
         }
 
-        colList := strings.Join(columns, ", ")
+        colList := strings.Join(colNames, ", ")
         var partitionWg sync.WaitGroup
         for i := 0; i < partitionCount; i++ {
             startRow := int64(i)*rangeSize + 1
@@ -661,8 +700,18 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                 }
 
                 query := fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
+ 
+                var rows *sql.Rows
+                var err error
+
                 t := time.Now()
-                rows, err := srcDB.Query(query)
+
+                if oracleDriverName == ORACLE_GODROR_DRIVER_NAME {
+                    rows, err = srcDB.Query(query, godror.PrefetchCount(FETCHED_NUM_ROWS), godror.FetchArraySize(FETCHED_NUM_ROWS))
+                }else{
+                    rows, err = srcDB.Query(query)
+                }
+                
                 if err != nil {
                     log.Printf("Partition %d: query error: %v", partitionId, err)
                     migrationError = fmt.Errorf("Partition %d: query error: %v", partitionId, err)
@@ -672,11 +721,17 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
 
                 defer rows.Close()
 
-                colCount := len(columns)
+                colCount := len(columnsInfo)
                 count := 0
                 scanArgs := make([]interface{}, colCount)
                 for i := range scanArgs {
-                    scanArgs[i] = new(interface{})
+                    if strings.ToUpper(columnsInfo[i].DataType) == "CLOB" {
+                        // Lấy CLOB trực tiếp dưới dạng string
+                        var s sql.NullString
+                        scanArgs[i] = &s
+                    } else {
+                        scanArgs[i] = new(interface{})
+                    }
                 }
 
                 for rows.Next() {
@@ -686,9 +741,20 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                         continue
                     }
                     rowData := make([]interface{}, colCount)
-                    for i, ptr := range scanArgs {
-                        rowData[i] = *(ptr.(*interface{}))
+                    for i, arg := range scanArgs {
+                        if s, ok := arg.(*sql.NullString); ok {
+                            // Xử lý cột CLOB
+                            if s.Valid {
+                                rowData[i] = s.String
+                            } else {
+                                rowData[i] = nil
+                            }
+                        } else {
+                            // Xử lý các cột khác
+                            rowData[i] = *arg.(*interface{})
+                        }
                     }
+
                     dataChan <- rowData
                     count++
 
@@ -744,7 +810,17 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
             go func(startVal, endVal int64, partitionId int) {
                 defer partitionWg.Done()
                 query := fmt.Sprintf("SELECT * FROM %s WHERE %s BETWEEN %d AND %d", srcTable, partitionColumn, startVal, endVal)
-                rows, err := srcDB.Query(query)
+                // rows, err := srcDB.Query(query)
+
+                var rows *sql.Rows
+                var err error
+
+                if oracleDriverName == ORACLE_GODROR_DRIVER_NAME {
+                    rows, err = srcDB.Query(query, godror.PrefetchCount(FETCHED_NUM_ROWS), godror.FetchArraySize(FETCHED_NUM_ROWS))
+                }else{
+                    rows, err = srcDB.Query(query)
+                }
+                
                 if err != nil {
                     log.Printf("Partition %d: query execution error: %v", partitionId, err)
                     migrationError = fmt.Errorf("Partition %d: query error: %v", partitionId, err)
@@ -753,7 +829,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                 }
                 defer rows.Close()
 
-                colCount := len(columns)
+                colCount := len(colNames)
                 count := 0
                 scanArgs := make([]interface{}, colCount)
                 for i := range scanArgs {
@@ -788,14 +864,23 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
     } else {
         // NOT TEST !!!!
         query := fmt.Sprintf("SELECT * FROM %s WHERE 1=1 %s", srcTable, filterWhere)
-        rows, err := srcDB.Query(query)
+        // rows, err := srcDB.Query(query)
+        var rows *sql.Rows
+        var err error
+
+        if oracleDriverName == ORACLE_GODROR_DRIVER_NAME {
+            rows, err = srcDB.Query(query, godror.PrefetchCount(FETCHED_NUM_ROWS), godror.FetchArraySize(FETCHED_NUM_ROWS))
+        }else{
+            rows, err = srcDB.Query(query)
+        }
+
         if err != nil {
             log.Fatalf("Error executing query on Oracle: %v", err)
             migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
         }
         defer rows.Close()
 
-        colCount := len(columns)
+        colCount := len(colNames)
         count := 0
         scanArgs := make([]interface{}, colCount)
         for i := range scanArgs {

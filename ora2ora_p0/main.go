@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,19 +15,16 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	go_ora "github.com/sijms/go-ora/v2"
+	_ "github.com/sijms/go-ora/v2"
 )
 
 var(
 	expectedDBName string
-    srcOracleDSN string
-    dstOracleDSN  string
-    bulkInsertMode string
 )
 
 const (
-	CHAN_QUEUE = 50_000  // 50_000
-	BATCH_SIZE = 50_000  // 50_000
+	CHAN_QUEUE = 50_000
+	BATCH_SIZE = 50_000
 	LOG_READED_ROWS =  100_000
 )
 
@@ -73,73 +69,6 @@ func printMemUsage(tag string) {
 	runtime.ReadMemStats(&m)
 	fmt.Printf("%s - Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
 		tag, m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024, m.NumGC)
-}
-
-func insertBatchBulkMode(dstOracleDSN string, tableName string, columns []string, batch [][]interface{}) error {
-
-    // if tableName != "MS_JAN" {
-    //     fmt.Println("test mode ")
-    //     return nil
-    // }
-    
-    conn, err := go_ora.NewConnection(dstOracleDSN, nil)
-	if err != nil {
-		return err
-	}
-	err = conn.Open()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Println("Can't close connection: ", err)
-		}
-	}()
-    t := time.Now()
-
-	rowCount := len(batch)
-	if rowCount == 0 {
-		return nil
-	}
-
-	// Tạo placeholders theo dạng :1, :2, ...
-	placeholders := make([]string, len(columns))
-	for i := range columns {
-		placeholders[i] = fmt.Sprintf(":%d", i+1)
-	}
-
-	sqlText := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
-		tableName,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
-	)
-
-	// Chuyển đổi dữ liệu dạng cột (column-wise)
-	colCount := len(columns)
-	columnData := make([][]driver.Value, colCount)
-	for colIdx := range columnData {
-		columnData[colIdx] = make([]driver.Value, rowCount)
-	}
-	for rowIdx, row := range batch {
-		for colIdx := range columns {
-			columnData[colIdx][rowIdx] = row[colIdx]
-		}
-	}
-
-	// Gọi BulkInsert
-	result, err := conn.BulkInsert(sqlText, rowCount, columnData...)
-	if err != nil {
-		return fmt.Errorf("bulk insert error: %w", err)
-	}
-    rowsAffected, _ := result.RowsAffected()
-	if rowsAffected != int64(rowCount) {
-		return fmt.Errorf("bulk insert mismatch: expected %d, got %d", rowCount, rowsAffected)
-	}
-
-    fmt.Printf("%d rows inserted: %v\n", rowsAffected, time.Since(t))
-    
-	return nil
 }
 
 
@@ -277,14 +206,8 @@ func formatValue(value interface{}) string {
 
 // insertBatchWithFallback 
 func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}) error {
-    var err error
-    // Check if bulk insert mode is enabled
-    if bulkInsertMode == "1" {
-        err = insertBatchBulkMode(dstOracleDSN, tableName, columns, batch)
-    }else{
-        err = insertBatch(db, tableName, columns, batch)    
-    }
-    
+    err := insertBatch(db, tableName, columns, batch)
+
     if err == nil {
         return nil
     }
@@ -434,15 +357,12 @@ func disableLogging(db *sql.DB, tableName string) error {
 	}
 	log.Printf("Connected to the correct database: %s", actualDBName)
 
-    // Extract the actual table name from tableName
-    actualTableName := extractTableName(tableName)// The first part is the actual table name
-
     ctx := context.Background()
-    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s NOLOGGING", actualTableName))
+    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s NOLOGGING", tableName))
     if err != nil {
         return fmt.Errorf("failed to disable logging: %w", err)
     }
-    log.Printf("Disabled logging for table: %s", actualTableName)
+    log.Printf("Disabled logging for table: %s", tableName)
     return nil
 }
 
@@ -455,16 +375,12 @@ func enableLogging(db *sql.DB, tableName string) error {
 		log.Fatalf("Wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
 	}
 	log.Printf("Connected to the correct database: %s", actualDBName)
-
-    // Extract the actual table name from tableName
-    actualTableName := extractTableName(tableName)// The first part is the actual table name
-
     ctx := context.Background()
-    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s LOGGING", actualTableName))
+    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s LOGGING", tableName))
     if err != nil {
         return fmt.Errorf("failed to enable logging: %w", err)
     }
-    log.Printf("Enabled logging for table: %s", actualTableName)
+    log.Printf("Enabled logging for table: %s", tableName)
     return nil
 }
 
@@ -487,14 +403,6 @@ func parseTableMappings(tableNames string) map[string]string {
     return mappings
 }
 
-func extractTableName(table string) string {
-    parts := strings.Split(table, " ")
-    if len(parts) > 0 {
-        return strings.TrimSpace(parts[0])
-    }
-    return ""
-}
-
 func main() {
     // Set up logging
     setupLogging()
@@ -505,14 +413,9 @@ func main() {
     }()
 
     // Retrieve required environment variables
-    srcOracleDSN = os.Getenv("SRC_ORACLE_DSN")
-    dstOracleDSN = os.Getenv("DST_ORACLE_DSN")
+    srcOracleDSN := os.Getenv("SRC_ORACLE_DSN")
+    dstOracleDSN := os.Getenv("DST_ORACLE_DSN")
     expectedDBName = os.Getenv("DESTINATION_DB_NAME")
-    bulkInsertMode = os.Getenv("BULK_INSERT_MODE")
-
-    if bulkInsertMode == "" {
-        bulkInsertMode = "0"
-    }
 
     if srcOracleDSN == "" || dstOracleDSN == "" || expectedDBName == "" {
         log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_ORACLE_DSN, DESTINATION_DB_NAME")
@@ -610,12 +513,11 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
     // Create a channel to receive errors from workers
     errorChan := make(chan error, numWorkers)
 
-    extractTableName := extractTableName(dstTable)
     var workerWg sync.WaitGroup
     for i := 0; i < numWorkers; i++ {
         workerWg.Add(1)
-        // go worker(i, dstDB, extractTableName, columns, nil, dataChan, &workerWg)
-        go worker(i, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg)
+        // go worker(i, dstDB, dstTable, columns, nil, dataChan, &workerWg)
+        go worker(i, dstDB, dstTable, columns, nil, dataChan, errorChan, &workerWg)
     }
 
     // Process data from Oracle in partitioned mode
@@ -625,7 +527,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
         var totalRows int64
         countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", srcTable, filterWhere)
         if err := srcDB.QueryRow(countQuery).Scan(&totalRows); err != nil {
-            log.Fatalf("Error retrieving total rows %v from query: %v", err, countQuery)
+            log.Fatalf("Error retrieving total rows: %v", err)
             migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
         }
         log.Printf("Total rows: %d", totalRows)

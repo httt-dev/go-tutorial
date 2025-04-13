@@ -1,4 +1,4 @@
-module httt-dev/ora2ora_p1
+module httt-dev/ora2ora
 
 go 1.23.0
 

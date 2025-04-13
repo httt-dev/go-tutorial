@@ -1,4 +1,4 @@
-module httt-dev/ora2ora_p1
+module httt-dev/ora2postgres_p1
 
 go 1.23.0
 

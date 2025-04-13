@@ -3,33 +3,41 @@ package main
 import (
 	"context"
 	"database/sql"
-	"database/sql/driver"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	go_ora "github.com/sijms/go-ora/v2"
+	_ "github.com/sijms/go-ora/v2"
 )
 
 var(
 	expectedDBName string
     srcOracleDSN string
-    dstOracleDSN  string
-    bulkInsertMode string
+    dstPostgresDSN  string
 )
+
+type ColumnInfo struct {
+	Name     string
+	DataType string
+}
 
 const (
 	CHAN_QUEUE = 50_000  // 50_000
 	BATCH_SIZE = 50_000  // 50_000
-	LOG_READED_ROWS =  100_000
+	LOG_READED_ROWS =  10000 // 10_000
 )
 
 func init() {
@@ -68,229 +76,91 @@ func setupLogging() {
 }
 
 
-func printMemUsage(tag string) {
-	var m runtime.MemStats
-	runtime.ReadMemStats(&m)
-	fmt.Printf("%s - Alloc = %v MiB, TotalAlloc = %v MiB, Sys = %v MiB, NumGC = %v\n",
-		tag, m.Alloc/1024/1024, m.TotalAlloc/1024/1024, m.Sys/1024/1024, m.NumGC)
-}
-
-func insertBatchBulkMode(dstOracleDSN string, tableName string, columns []string, batch [][]interface{}) error {
-
-    // if tableName != "MS_JAN" {
-    //     fmt.Println("test mode ")
-    //     return nil
-    // }
+func insertBatch(pool *pgxpool.Pool, tableName string, columns []string, batch [][]interface{}) error {
     
-    conn, err := go_ora.NewConnection(dstOracleDSN, nil)
-	if err != nil {
-		return err
-	}
-	err = conn.Open()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		err = conn.Close()
-		if err != nil {
-			fmt.Println("Can't close connection: ", err)
-		}
-	}()
-    t := time.Now()
+	ctx := context.Background()
 
-	rowCount := len(batch)
-	if rowCount == 0 {
-		return nil
-	}
+	copyData := make([][]interface{}, len(batch))
+	// for i, row := range batch {
+	// 	copyData[i] = row
+	// }
+	copy(copyData, batch)
 
-	// Tạo placeholders theo dạng :1, :2, ...
-	placeholders := make([]string, len(columns))
-	for i := range columns {
-		placeholders[i] = fmt.Sprintf(":%d", i+1)
-	}
-
-	sqlText := fmt.Sprintf("INSERT INTO %s (%s) VALUES(%s)",
-		tableName,
-		strings.Join(columns, ", "),
-		strings.Join(placeholders, ", "),
+	// copy data to PostgreSQL
+	_, err := pool.CopyFrom(
+		ctx,
+		pgx.Identifier{tableName},
+		columns,
+		pgx.CopyFromRows(copyData),
 	)
 
-	// Chuyển đổi dữ liệu dạng cột (column-wise)
-	colCount := len(columns)
-	columnData := make([][]driver.Value, colCount)
-	for colIdx := range columnData {
-		columnData[colIdx] = make([]driver.Value, rowCount)
-	}
-	for rowIdx, row := range batch {
-		for colIdx := range columns {
-			columnData[colIdx][rowIdx] = row[colIdx]
-		}
-	}
-
-	// Gọi BulkInsert
-	result, err := conn.BulkInsert(sqlText, rowCount, columnData...)
 	if err != nil {
-		return fmt.Errorf("bulk insert error: %w", err)
-	}
-    rowsAffected, _ := result.RowsAffected()
-	if rowsAffected != int64(rowCount) {
-		return fmt.Errorf("bulk insert mismatch: expected %d, got %d", rowCount, rowsAffected)
+		return fmt.Errorf("copy to Postgres error: %w", err)
 	}
 
-    fmt.Printf("%d rows inserted: %v\n", rowsAffected, time.Since(t))
-    
 	return nil
 }
 
-
-func insertBatch(db *sql.DB, tableName string, columns []string, batch [][]interface{}) error {
-    ctx := context.Background()
-
-    // Create the INSERT statement with placeholders
-    sqlText := fmt.Sprintf("INSERT INTO %s (%s) VALUES (%s)",
-        tableName,
-        strings.Join(columns, ", "),
-        ":"+strings.Join(columns, ", :"),
-    )
-
-    tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("error starting transaction: %w", err)
-	}
-	defer tx.Rollback() // Rollback transaction in case of error
-
-	stmt, err := tx.PrepareContext(ctx, sqlText)
-	if err != nil {
-		return fmt.Errorf("error preparing statement: %w", err)
-	}
-	defer stmt.Close()
-
-    // Convert batch into slices for each column
-    colCount := len(columns)
-    colSlices := make([][]interface{}, colCount)
-    for i := range colSlices {
-        colSlices[i] = make([]interface{}, len(batch))
-    }
-    for rowIdx, row := range batch {
-        for colIdx, col := range row {
-            colSlices[colIdx][rowIdx] = col
-        }
-    }
-
-    // Create a slice containing named parameters
-    namedArgs := make([]interface{}, colCount)
-    for i, col := range columns {
-        namedArgs[i] = sql.Named(col, colSlices[i])
-    }
-    
-    // Execute the INSERT statement with slices
-    _, err = stmt.ExecContext(ctx, namedArgs...)
-    if err != nil {
-        return fmt.Errorf("error executing batch insert: %w", err)
-    }
-
-    err = tx.Commit()
-	if err != nil {
-		return fmt.Errorf("error committing transaction: %w", err)
-	}
-
-    return nil
-}
-
-// Function to get column data types from a table
-func getColumnTypes(db *sql.DB, tableName string) ([]interface{}, error) {
-	query := `
-		SELECT COLUMN_NAME, DATA_TYPE, DATA_PRECISION, DATA_SCALE
-		FROM ALL_TAB_COLUMNS
-		WHERE TABLE_NAME = :1`
-	
+func insertBatchUseString(pool *pgxpool.Pool, tableName string, columns []string, batch [][]interface{}) error {
 	ctx := context.Background()
-	rows, err := db.QueryContext(ctx, query, strings.ToUpper(tableName))
+
+	if len(batch) == 0 {
+		return nil
+	}
+
+	// make placeholders ($1, $2), ($3, $4), ...
+	var (
+		valueStrings []string
+		values       []interface{}
+		argCounter   = 1
+		numCols      = len(columns)
+	)
+
+	for _, row := range batch {
+		if len(row) != numCols {
+			return fmt.Errorf("invalid number of columns in row: expected %d, got %d", numCols, len(row))
+		}
+		placeholders := make([]string, numCols)
+		for i := range row {
+			placeholders[i] = fmt.Sprintf("$%d", argCounter)
+			argCounter++
+		}
+		valueStrings = append(valueStrings, "("+strings.Join(placeholders, ", ")+")")
+		values = append(values, row...)
+	}
+
+	query := fmt.Sprintf(
+		`INSERT INTO %s (%s) VALUES %s`,
+		tableName,
+		strings.Join(columns, ", "),
+		strings.Join(valueStrings, ", "),
+	)
+
+	_, err := pool.Exec(ctx, query, values...)
 	if err != nil {
-		return nil, fmt.Errorf("error querying column types: %w", err)
-	}
-	defer rows.Close()
-
-	var columnTypes []interface{}
-	for rows.Next() {
-		var columnName, dataType string
-		var dataPrecision, dataScale sql.NullInt64 // Can be NULL if not applicable
-
-		if err := rows.Scan(&columnName, &dataType, &dataPrecision, &dataScale); err != nil {
-			return nil, fmt.Errorf("error scanning row: %w", err)
-		}
-
-		// Handle NUMBER type
-		if strings.ToUpper(dataType) == "NUMBER" {
-			if dataScale.Valid && dataScale.Int64 > 0 { // Has decimal part → float64
-				columnTypes = append(columnTypes, float64(0))
-			// } else if dataPrecision.Valid && dataPrecision.Int64 < 10 { // Số nguyên <= 10 chữ số → int
-			// 	columnTypes = append(columnTypes, int(0))
-			} else { // Số lớn hơn → int64
-				columnTypes = append(columnTypes, int64(0))
-			}
-			continue
-		}
-
-		// Handle other data types
-		switch strings.ToUpper(dataType) {
-		case "VARCHAR2", "CHAR", "NVARCHAR2", "CLOB":
-			columnTypes = append(columnTypes, "")
-		case "DATE", "TIMESTAMP", "TIMESTAMP(6)":
-			columnTypes = append(columnTypes, time.Time{})
-		case "BLOB", "RAW":
-			columnTypes = append(columnTypes, []byte{})
-		default:
-			columnTypes = append(columnTypes, nil)
-		}
+		return fmt.Errorf("insert batch error: %w", err)
 	}
 
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating over rows: %w", err)
-	}
-
-	return columnTypes, nil
-}
-
-// Hàm escapeString để xử lý chuỗi tránh SQL Injection
-func escapeString(value string) string {
-    return strings.ReplaceAll(value, "'", "''")
-}
-
-func formatValue(value interface{}) string {
-    switch v := value.(type) {
-    case nil:
-        return "NULL" // Oracle uses NULL to represent empty values
-    case string:
-        return fmt.Sprintf("'%s'", escapeString(v)) // Add single quotes and handle special characters
-    case time.Time:
-        if v.IsZero() {
-            return "NULL"
-        }
-        return fmt.Sprintf("TO_TIMESTAMP('%s', 'YYYY-MM-DD HH24:MI:SS.FF6')", v.Format("2006-01-02 15:04:05.000000"))
-    case int, int32, int64, float32, float64:
-        return fmt.Sprintf("%v", v) // Numeric types don't need single quotes
-    default:
-        return fmt.Sprintf("'%v'", v) // Default to adding single quotes
-    }
+	return nil
 }
 
 // insertBatchWithFallback 
-func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}) error {
-    var err error
-    // Check if bulk insert mode is enabled
-    if bulkInsertMode == "1" {
-        err = insertBatchBulkMode(dstOracleDSN, tableName, columns, batch)
-    }else{
-        err = insertBatch(db, tableName, columns, batch)    
-    }
+func insertBatchWithFallback(db *pgxpool.Pool, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}) error {
     
+    err := insertBatch(db, tableName, columns, batch)
+
     if err == nil {
         return nil
     }
     // If the batch contains only one record, log it and return the error
     if len(batch) == 1 {
-        log.Printf("Error record: %v", batch[0])
+        log.Printf("Error record: %v\n", batch[0])
+
+        err = insertBatchUseString(db, tableName, columns, batch)
+        if err == nil {
+            return nil
+        }
+        log.Printf("retry insert error record: %v\n", err)
         return err
     }
     // Split the batch into two parts and try inserting each part
@@ -298,45 +168,17 @@ func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, col
     err1 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[:mid])
     err2 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[mid:])
     if err1 != nil || err2 != nil {
-        return fmt.Errorf("Error inserting split batch: err1: %v, err2: %v", err1, err2)
+        return fmt.Errorf("error inserting split batch: err1: %v, err2: %v", err1, err2)
     }
     return nil
 }
 
-// Worker function to insert data into Oracle
-// func worker(workerId int, db *sql.DB, tableName string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, wg *sync.WaitGroup) {
-//     defer wg.Done()
-//     batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
-//     batch := make([][]interface{}, 0, batchSize)
-
-// 	actualDBName, err := verifyConnection(db)
-// 	if err != nil {
-// 		log.Fatalf("Failed to verify connection: %v", err)
-// 	}
-// 	if actualDBName != expectedDBName {
-// 		log.Fatalf("Wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
-// 	}
-// 	log.Printf("Connected to the correct database: %s , workerId: %v", actualDBName,workerId)
-
-//     for row := range dataChan {
-//         batch = append(batch, row)
-//         if len(batch) >= batchSize {
-//             if err := insertBatchWithFallback(db, tableName, columns, columnTypes, batch); err != nil {
-//                 log.Printf("Worker %d: error inserting batch: %v", workerId, err)
-//             }
-//             batch = batch[:0]
-//         }
-//     }
-//     // Nếu còn dư dữ liệu trong batch, chèn chúng
-//     if len(batch) > 0 {
-//         if err := insertBatchWithFallback(db, tableName, columns, columnTypes, batch); err != nil {
-//             log.Printf("Worker %d: error inserting last batch: %v", workerId, err)
-//         }
-//     }
-//     log.Printf("Worker %d: finished processing", workerId)
-// }
-
-func worker(workerId int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
+// worker function to process data from the channel and insert it into PostgreSQL
+// It takes the worker ID, database connection, destination table name, columns, column types,
+// data channel, error channel, and wait group as parameters
+// The function reads data from the data channel, processes it, and inserts it into PostgreSQL
+// It also handles errors and logs the progress
+func worker(workerId int, db *pgxpool.Pool, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
     defer wg.Done()
     batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
     batch := make([][]interface{}, 0, batchSize)
@@ -370,7 +212,8 @@ func worker(workerId int, db *sql.DB, dstTable string, columns []string, columnT
     log.Printf("Worker %d: finished processing", workerId)
 }
 
-
+// createOraclePool creates a connection pool for Oracle using sijms/go-ora
+// It sets various connection pool parameters such as max connections, min connections, etc.
 func createOraclePool(dsn string) (*sql.DB, error) {
     // Extract host and service information from the DSN
     host, service := extractHostAndService(dsn)
@@ -397,7 +240,31 @@ func createOraclePool(dsn string) (*sql.DB, error) {
     return db, nil
 }
 
+// createPostgresPool creates a connection pool for PostgreSQL using pgxpool
+// It sets various connection pool parameters such as max connections, min connections, etc.
+func createPostgresPool(pgDSN string) (*pgxpool.Pool, error) {
+	config, err := pgxpool.ParseConfig(pgDSN)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse postgres config: %w", err)
+	}
+
+	config.MaxConns = 20
+	config.MinConns = 5
+	config.MaxConnLifetime = time.Hour
+	config.MaxConnIdleTime = 30 * time.Minute
+	config.HealthCheckPeriod = 1 * time.Minute
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create postgres pool: %w", err)
+	}
+
+	return pool, nil
+}
+
 // Helper function to extract host and service from the DSN
+// The DSN format is expected to be "user:password@host/service_name"
+// If the format is invalid, it returns "unknown" for both host and service.
 func extractHostAndService(dsn string) (string, string) {
     parts := strings.Split(dsn, "@")
     if len(parts) < 2 {
@@ -413,61 +280,89 @@ func extractHostAndService(dsn string) (string, string) {
     return hostAndService[0], "unknown" // If service is missing, return "unknown"
 }
 
-func verifyConnection(db *sql.DB) (string, error) {
+// verifyConnection verifies the connection to the PostgreSQL database
+// It checks if the connection is valid and retrieves the current database name.
+func verifyConnection(db *pgxpool.Pool) (string, error) {
     ctx := context.Background()
     var dbName string
-    query := "SELECT SYS_CONTEXT('USERENV', 'DB_NAME') AS DB_NAME FROM DUAL"
-    err := db.QueryRowContext(ctx, query).Scan(&dbName)
+
+    query := "SELECT current_database()"
+    err := db.QueryRow(ctx, query).Scan(&dbName)
     if err != nil {
         return "", fmt.Errorf("error verifying connection: %w", err)
     }
+
     return dbName, nil
 }
 
-func disableLogging(db *sql.DB, tableName string) error {
-	actualDBName, err := verifyConnection(db)
-	if err != nil {
-		log.Fatalf("Failed to verify connection: %v", err)
-	}
-	if actualDBName != expectedDBName {
-		log.Fatalf("Wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
-	}
-	log.Printf("Connected to the correct database: %s", actualDBName)
-
-    // Extract the actual table name from tableName
-    actualTableName := extractTableName(tableName)// The first part is the actual table name
-
-    ctx := context.Background()
-    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s NOLOGGING", actualTableName))
+// disableLogging disables triggers on the specified table in the PostgreSQL database
+// It verifies the connection to the database and checks if the correct database is connected.  
+func disableLogging(db *pgxpool.Pool, tableName string) error {
+    // Verify the connection and ensure the correct database is connected
+    actualDBName, err := verifyConnection(db)
     if err != nil {
-        return fmt.Errorf("failed to disable logging: %w", err)
+        return fmt.Errorf("failed to verify connection: %w", err)
     }
-    log.Printf("Disabled logging for table: %s", actualTableName)
+
+    // Check if the connected database matches the expected one
+    if actualDBName != expectedDBName {
+        return fmt.Errorf("wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
+    }
+    log.Printf("Connected to the correct database: %s", actualDBName)
+
+    // Extract the actual table name from the input
+    actualTableName := extractTableName(tableName) // Assume this function extracts the table name
+
+    // Disable triggers on the table
+    ctx := context.Background()
+    // MUST BE RUN WITH SUPERUSER PRIVILEGES !!!!
+    query := fmt.Sprintf("ALTER TABLE %s DISABLE TRIGGER ALL", actualTableName)
+    _, err = db.Exec(ctx, query)
+    if err != nil {
+        return fmt.Errorf("failed to disable triggers for table %s: %w", actualTableName, err)
+    }
+
+    log.Printf("Disabled triggers for table: %s", actualTableName)
     return nil
 }
 
-func enableLogging(db *sql.DB, tableName string) error {
-	actualDBName, err := verifyConnection(db)
-	if err != nil {
-		log.Fatalf("Failed to verify connection: %v", err)
-	}
-	if actualDBName != expectedDBName {
-		log.Fatalf("Wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
-	}
-	log.Printf("Connected to the correct database: %s", actualDBName)
-
-    // Extract the actual table name from tableName
-    actualTableName := extractTableName(tableName)// The first part is the actual table name
-
-    ctx := context.Background()
-    _, err = db.ExecContext(ctx, fmt.Sprintf("ALTER TABLE %s LOGGING", actualTableName))
+// enableLogging enables triggers on the specified table in the PostgreSQL database
+// It verifies the connection to the database and checks if the correct database is connected.
+func enableLogging(db *pgxpool.Pool, tableName string) error {
+    // Verify the connection and ensure the correct database is connected
+    actualDBName, err := verifyConnection(db)
     if err != nil {
-        return fmt.Errorf("failed to enable logging: %w", err)
+        return fmt.Errorf("failed to verify connection: %w", err)
     }
-    log.Printf("Enabled logging for table: %s", actualTableName)
+
+    // Check if the connected database matches the expected one
+    if actualDBName != expectedDBName {
+        return fmt.Errorf("wrong database connected! Expected: %s, Actual: %s", expectedDBName, actualDBName)
+    }
+    log.Printf("Connected to the correct database: %s", actualDBName)
+
+    // Extract the actual table name from the input
+    actualTableName := extractTableName(tableName) // Assume this function extracts the table name
+
+    // Enable triggers on the table
+    ctx := context.Background()
+    query := fmt.Sprintf("ALTER TABLE %s ENABLE TRIGGER ALL", actualTableName)
+    _, err = db.Exec(ctx, query)
+    if err != nil {
+        return fmt.Errorf("failed to enable triggers for table %s: %w", actualTableName, err)
+    }
+
+    log.Printf("Enabled triggers for table: %s", actualTableName)
     return nil
 }
 
+// parseTableMappings parses the table mappings from the input string
+// The input string should be in the format "src_table:dst_table, src_table2:dst_table2"
+// If the destination table is not specified, it defaults to the source table name
+// Example: "src_table1:dst_table1, src_table2" will map src_table1 to dst_table1 and src_table2 to src_table2
+// The function returns a map where the keys are source table names and the values are destination table names
+// If the input string is empty, it returns an empty map
+// If the input string is not in the correct format, it returns an error
 func parseTableMappings(tableNames string) map[string]string {
     mappings := make(map[string]string)
     tables := strings.Split(tableNames, ",")
@@ -487,12 +382,65 @@ func parseTableMappings(tableNames string) map[string]string {
     return mappings
 }
 
+// extractTableName extracts the table name from the input string
 func extractTableName(table string) string {
     parts := strings.Split(table, " ")
     if len(parts) > 0 {
         return strings.TrimSpace(parts[0])
     }
     return ""
+}
+
+// Function to get column data types from a table
+func getTableColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
+	query := `
+		SELECT column_name, data_type
+		FROM user_tab_columns
+		WHERE table_name = :1
+		ORDER BY column_id`
+	rows, err := db.Query(query, strings.ToUpper(tableName))
+	if err != nil {
+		return nil, fmt.Errorf("error querying columns: %w", err)
+	}
+	defer rows.Close()
+
+	var columns []ColumnInfo
+	for rows.Next() {
+		var col ColumnInfo
+		if err := rows.Scan(&col.Name, &col.DataType); err != nil {
+			return nil, fmt.Errorf("error scanning column info: %w", err)
+		}
+		columns = append(columns, col)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating column info: %w", err)
+	}
+	if len(columns) == 0 {
+		return nil, fmt.Errorf("no columns found for table %s", tableName)
+	}
+	return columns, nil
+}
+
+// maybeDecodeShiftJIS checks if the string is valid UTF-8 and decodes it from Shift-JIS if not
+func maybeDecodeShiftJIS(s string) string {
+    if utf8.ValidString(s) {
+        return s // already valid UTF-8
+    }
+    decoded, err := decodeShiftJIS(s)
+    if err != nil {
+        return s // fallback to original string if decoding fails
+    }
+    return decoded
+}
+
+// decodeShiftJIS decodes a Shift-JIS encoded string to UTF-8
+func decodeShiftJIS(input string) (string, error) {
+    reader := transform.NewReader(strings.NewReader(input), japanese.ShiftJIS.NewDecoder())
+    decoded, err := io.ReadAll(reader)
+    if err != nil {
+        return "", err
+    }
+    return string(decoded), nil
 }
 
 func main() {
@@ -506,16 +454,11 @@ func main() {
 
     // Retrieve required environment variables
     srcOracleDSN = os.Getenv("SRC_ORACLE_DSN")
-    dstOracleDSN = os.Getenv("DST_ORACLE_DSN")
+    dstPostgresDSN = os.Getenv("DST_POSTGRES_DSN")
     expectedDBName = os.Getenv("DESTINATION_DB_NAME")
-    bulkInsertMode = os.Getenv("BULK_INSERT_MODE")
 
-    if bulkInsertMode == "" {
-        bulkInsertMode = "0"
-    }
-
-    if srcOracleDSN == "" || dstOracleDSN == "" || expectedDBName == "" {
-        log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_ORACLE_DSN, DESTINATION_DB_NAME")
+    if srcOracleDSN == "" || dstPostgresDSN == "" || expectedDBName == "" {
+        log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_POSTGRES_DSN, DESTINATION_DB_NAME")
     }
 
 	tableNames := os.Getenv("TABLE_NAME")
@@ -546,31 +489,33 @@ func main() {
     }
     defer srcOracleDB.Close()
 
-    // Connect to Destination Oracle
-    dstOracleDB, err := createOraclePool(dstOracleDSN)
-    if err != nil {
-        log.Fatalf("Error creating DESTINATION Oracle pool: %v", err)
-    }
-    defer dstOracleDB.Close()
+    // Connect to Destination Postgres
+    dstPostgresDB, err := createPostgresPool(dstPostgresDSN)
+	if err != nil {
+		log.Fatalf("Error creating PostgreSQL pool: %v", err)
+	}
+	defer dstPostgresDB.Close()
+
 
 	for srcTable, dstTable := range tableMappings {
+        dstTable = strings.ToLower(dstTable)
 		log.Printf("Starting to process table: source=%s, destination=%s", srcTable, dstTable)
 		
 		// Disable logging before starting
-        err := disableLogging(dstOracleDB, dstTable)
+        err := disableLogging(dstPostgresDB, dstTable)
         if err != nil {
             log.Printf("Error disabling logging for table %s: %v", dstTable, err)
             continue
         }
 
         defer func(dstTable string) {
-            if err := enableLogging(dstOracleDB, dstTable); err != nil {
+            if err := enableLogging(dstPostgresDB, dstTable); err != nil {
                 log.Printf("Error enabling logging for table %s: %v", dstTable, err)
             } 
         }(dstTable)
 
 		// Perform the data migration process for the current table
-        err = migrateTable(srcOracleDB, dstOracleDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
+        err = migrateTable(srcOracleDB, dstPostgresDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
         if err != nil {
             log.Printf("Error processing table source=%s, destination=%s: %v", srcTable, dstTable, err)
             continue
@@ -582,20 +527,36 @@ func main() {
 }
 
 
-func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
-	// Retrieve column names from Oracle
-    dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
-    dummyRows, err := srcDB.Query(dummyQuery)
-    if err != nil {
-        log.Fatalf("Error executing dummy query: %v", err)
-    }
-    columns, err := dummyRows.Columns()
-    if err != nil {
-        log.Fatalf("Error getting columns: %v", err)
-    }
-    dummyRows.Close()
+func migrateTable(srcDB *sql.DB, dstDB *pgxpool.Pool, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
 
+    log.Printf("Starting migration for table: %s to %s", srcTable, dstTable)
+    // Get column information from Oracle
+    columnsInfo, err := getTableColumns(srcDB, srcTable)
+    if err != nil {
+		return fmt.Errorf("error getting columns for %s: %w", srcTable, err)
+	}
 
+    columns := make([]string, len(columnsInfo))
+	for i, col := range columnsInfo {
+		columns[i] = col.Name
+	}
+
+	// // Retrieve column names from Oracle
+    // dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
+    // dummyRows, err := srcDB.Query(dummyQuery)
+    // if err != nil {
+    //     log.Fatalf("Error executing dummy query: %v", err)
+    // }
+    // columns, err := dummyRows.Columns()
+    // if err != nil {
+    //     log.Fatalf("Error getting columns: %v", err)
+    // }
+    // dummyRows.Close()
+
+    for i, col := range columns {
+		columns[i] = strings.ToLower(col)
+	}
+	// log.Printf("Columns (convert to lower): %v", columns)
 
     // Initialize worker pool for Oracle
     numWorkers := 10
@@ -673,12 +634,27 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                 defer rows.Close()
 
                 colCount := len(columns)
+                colTypes, _ := rows.ColumnTypes()
+
                 count := 0
                 scanArgs := make([]interface{}, colCount)
-                for i := range scanArgs {
-                    scanArgs[i] = new(interface{})
+                // for i := range scanArgs {
+                //     scanArgs[i] = new(interface{})
+                // }
+
+                for i := 0; i < colCount; i++ {
+                    dbType := colTypes[i].DatabaseTypeName()
+                    switch dbType {
+                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
+                        var s sql.NullString
+                        scanArgs[i] = &s // use sql.NullString to handle NULL values
+                    default:
+                        var raw interface{}
+                        scanArgs[i] = &raw
+                    }
                 }
 
+                
                 for rows.Next() {
                     if err := rows.Scan(scanArgs...); err != nil {
                         log.Printf("Partition %d: row scan error: %v", partitionId, err)
@@ -686,9 +662,22 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                         continue
                     }
                     rowData := make([]interface{}, colCount)
-                    for i, ptr := range scanArgs {
-                        rowData[i] = *(ptr.(*interface{}))
+                    // for i, ptr := range scanArgs {
+                    //     rowData[i] = *(ptr.(*interface{}))
+                    // }
+                    for i, v := range scanArgs {
+                        switch val := v.(type) {
+                        case *sql.NullString:
+                            if val.Valid {
+                                rowData[i] = maybeDecodeShiftJIS(val.String)
+                            } else {
+                                rowData[i] = nil
+                            }
+                        default:
+                            rowData[i] = *(v.(*interface{}))
+                        }
                     }
+
                     dataChan <- rowData
                     count++
 

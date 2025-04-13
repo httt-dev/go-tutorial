@@ -159,23 +159,25 @@ func insertBatchWithFallback(pool *pgxpool.Pool, tableName string, columns []str
     err := insertBatch(pool, tableName, columns, batch)
     if err == nil {
         return nil
-    }
+    }else{
+		return fmt.Errorf("error insertingbbatch: err: %v", err)
+	}
 
-    if len(batch) == 1 {
-        log.Printf("Error record: %v. Error detail %v", batch[0],err)
-        return err
-    }
+    // if len(batch) == 1 {
+    //     log.Printf("Error record: %v. Error detail %v", batch[0],err)
+    //     return err
+    // }
 
-    mid := len(batch) / 2
-    err1 := insertBatchWithFallback(pool, tableName, columns, batch[:mid])
-    err2 := insertBatchWithFallback(pool, tableName, columns, batch[mid:])
-    if err1 != nil || err2 != nil {
-        return fmt.Errorf("error inserting split batch: err1: %v, err2: %v", err1, err2)
-    }
-    return nil
+    // mid := len(batch) / 2
+    // err1 := insertBatchWithFallback(pool, tableName, columns, batch[:mid])
+    // err2 := insertBatchWithFallback(pool, tableName, columns, batch[mid:])
+    // if err1 != nil || err2 != nil {
+    //     return fmt.Errorf("error inserting split batch: err1: %v, err2: %v", err1, err2)
+    // }
+    // return nil
 }
 
-func worker(workerId int, pool *pgxpool.Pool, dstTable string, columns []string, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
+func worker(ctx context.Context, workerId int, pool *pgxpool.Pool, dstTable string, columns []string, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
@@ -192,26 +194,54 @@ func worker(workerId int, pool *pgxpool.Pool, dstTable string, columns []string,
     // }
     // log.Printf("Worker %d: connected to the correct database: %s", workerId, actualDBName)
 
-	for row := range dataChan {
-		batch = append(batch, row)
-		if len(batch) >= batchSize {
-			if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
-				// log.Printf("Worker %d: error inserting batch: %v", workerId, err)
-				errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
-			}
-			batch = batch[:0]
+	// for row := range dataChan {
+	// 	batch = append(batch, row)
+	// 	if len(batch) >= batchSize {
+	// 		if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
+	// 			// log.Printf("Worker %d: error inserting batch: %v", workerId, err)
+	// 			errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
+	// 		}
+	// 		batch = batch[:0]
+	// 	}
+	// }
+
+	// // Insert remaining data in the batch
+	// if len(batch) > 0 {
+	// 	if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
+	// 		// log.Printf("Worker %d: error inserting last batch: %v", workerId, err)
+	// 		errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
+	// 	}
+	// }
+
+	for{
+		select{
+			case <-ctx.Done():
+				log.Printf("Worker %d: received cancellation signal, stopping...", workerId)
+            	return
+			case row, ok := <-dataChan:
+				if !ok {
+					// Channel closed, process remaining batch
+					if len(batch) > 0 {
+						if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
+							errorChan <- fmt.Errorf("worker %d: error inserting last batch: %v", workerId, err)
+							return // Exit immediately if the last batch fails
+						}
+					}
+					log.Printf("Worker %d: finished processing remaining rows", workerId)
+					return
+				}
+				batch = append(batch, row)
+				if len(batch) >= batchSize {
+					if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
+						errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
+					}
+					batch = batch[:0]
+				}
+				
 		}
 	}
-
-	// Insert remaining data in the batch
-	if len(batch) > 0 {
-		if err := insertBatchWithFallback(pool, dstTable, columns, batch); err != nil {
-			// log.Printf("Worker %d: error inserting last batch: %v", workerId, err)
-			errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
-		}
-	}
-
 	log.Printf("Worker %d: finished processing", workerId)
+
 }
 
 func timeTrack(start time.Time, name string) {
@@ -405,8 +435,10 @@ func main() {
 	defer posgresDB.Close()
 
 	for srcTable, dstTable := range tableMappings {
-		log.Printf("Starting to process table: source=%s, destination=%s", srcTable, dstTable)
+		log.Printf(strings.Repeat("-", 20) + "Starting to process table: source=%s, destination=%s" + strings.Repeat("-", 20), srcTable, dstTable)
 		
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		// Disable logging before starting
         err := disableConstraints(posgresDB, dstTable)
         if err != nil {
@@ -421,7 +453,7 @@ func main() {
         }(dstTable)
 
 		// Perform the data migration process for the current table
-        err = migrateTable(oracleDB, posgresDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
+        err = migrateTable(ctx, cancel, oracleDB, posgresDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
         if err != nil {
             log.Printf("Error processing table source=%s, destination=%s: %v", srcTable, dstTable, err)
             continue
@@ -435,7 +467,7 @@ func main() {
 
 }
 
-func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
+func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
 	var sourceRowCount, copiedRowCount int64
 	var migrationError error
 	// Retrieve column names from Oracle
@@ -471,12 +503,24 @@ func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable 
 
 	// Create a channel to receive errors from workers
     errorChan := make(chan error, numWorkers)
+	// Goroutine to handle errors from errorChan
+	go func() {
+		for err := range errorChan {
+			if migrationError == nil {
+				migrationError = err
+			} else {
+				log.Printf("Additional error: %v", err)
+			}
+			cancel() // Cancel all workers
+		}
+	}()
 
+	
 	var workerWg sync.WaitGroup
 	for i := 0; i < numWorkers; i++ {
 		workerWg.Add(1)
 		// go worker(i, pool, tableName, columns, dataChan, &workerWg)
-		go worker(i, dstDB, dstTable, columns, dataChan, errorChan, &workerWg)
+		go worker(ctx, i, dstDB, dstTable, columns, dataChan, errorChan, &workerWg)
 	}
 
 	// Process data from Oracle in partitioned mode
@@ -524,6 +568,15 @@ func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable 
 
 				query := fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
 				t := time.Now()
+
+				select {
+				case <-ctx.Done():
+					log.Printf("Partition %d: Received cancellation signal, stopping...", partitionId)
+					return
+				default:
+					// Tiếp tục nếu không có tín hiệu hủy
+				}
+
 				rows, err := srcDB.Query(query)
 				if err != nil {
 					log.Printf("Partition %d: query error: %v", partitionId, err)
@@ -536,13 +589,22 @@ func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable 
 				colCount := len(columns)
 				count := 0
 
-				// Tạo sẵn slice con trỏ để scan và tái sử dụng
 				scanArgs := make([]interface{}, colCount)
 				for i := range scanArgs {
 					scanArgs[i] = new(interface{})
 				}
 
 				for rows.Next() {
+
+					select {
+					case <-ctx.Done():
+						log.Printf("Partition %d: Received cancellation signal while processing rows, stopping...", partitionId)
+						return
+					default:
+						// Tiếp tục nếu không có tín hiệu hủy
+					}
+
+					
 					if err := rows.Scan(scanArgs...); err != nil {
 						log.Printf("Partition %d: row scan error: %v", partitionId, err)
 						migrationError = fmt.Errorf("partition %d: row scan error: %v", partitionId, err)
@@ -694,16 +756,9 @@ func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable 
 	// Check for errors from workers
     close(errorChan)
 
-    for err := range errorChan {
-        if migrationError == nil {
-            migrationError = err
-        } else {
-            log.Printf("Additional error: %v", err)
-        }
-    }
-
     if migrationError != nil {
-        log.Printf("Error occurred while migrating data from table: %s. Error: %v", srcTable, migrationError)
+        //log.Printf("Error occurred while migrating data from table: %s. Error: %v", srcTable, migrationError)
+		cancel() // Cancel all workers
     }else{
 		log.Printf("Successfully migrated data from table: %s", srcTable)
 		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", dstTable , filterWhere)
@@ -731,7 +786,7 @@ func migrateTable(srcDB *sql.DB,dstDB *pgxpool.Pool , srcTable string, dstTable 
 }
 
 func printSummary() {
-    log.Println("\n=== SUMMARY ===")
+    log.Println("=== SUMMARY ===")
     log.Printf("%-20s %-15s %-20s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
     log.Println(strings.Repeat("-", 80))
     for _, summary := range summaryList {
