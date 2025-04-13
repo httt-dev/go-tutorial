@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -363,7 +364,7 @@ func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, col
 //     log.Printf("Worker %d: finished processing", workerId)
 // }
 
-func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
+func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup, copiedRowCount *int64) {
     defer wg.Done()
 
     // batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
@@ -409,6 +410,7 @@ func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable
 							errorChan <- fmt.Errorf("worker %d: error inserting last batch: %v", workerId, err)
 							return // Exit immediately if the last batch fails
 						}
+                        atomic.AddInt64(copiedRowCount, int64(len(batch))) // Update the count
 					}
 					log.Printf("Worker %d: finished processing remaining rows", workerId)
 					return
@@ -417,7 +419,9 @@ func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable
 				if len(batch) >= batchSize {
 					if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
 						errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
-					}
+					}else {
+                        atomic.AddInt64(copiedRowCount, int64(len(batch))) // Update the count
+                    }
 					batch = batch[:0]
 				}
 				
@@ -747,6 +751,8 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
         chanQueue = CHAN_QUEUE_HAS_CLOB
         batchSize = BATCH_SIZE_HAS_CLOB
         logReadedRows = LOG_READED_HAS_CLOB_ROWS
+
+        log.Println("CLOB column detected, adjusting batch size and channel queue")
     }
     // Retrieve column names from Oracle
     dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
@@ -794,7 +800,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
     for i := 0; i < numWorkers; i++ {
         workerWg.Add(1)
         // go worker(i, dstDB, extractTableName, columns, nil, dataChan, &workerWg)
-        go worker(ctx, i, batchSize, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg)
+        go worker(ctx, i, batchSize, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg, &copiedRowCount)
     }
 
     // Process data from Oracle in partitioned mode
@@ -847,7 +853,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
 					log.Printf("Partition %d: Received cancellation signal, stopping...", partitionId)
 					return
 				default:
-					// Tiếp tục nếu không có tín hiệu hủy
+					// continue if no cancellation signal
 				}
 
                 rows, err := srcDB.Query(query)
@@ -1061,11 +1067,6 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
 		cancel() // Cancel all workers
     }else{
 		log.Printf("Successfully migrated data from table: %s", srcTable)
-		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", dstTable , filterWhere)
-        if err := dstDB.QueryRowContext(context.Background(), countQuery).Scan(&copiedRowCount); err != nil {
-            log.Printf("Error counting rows in destination table %s: %v", dstTable, err)
-            migrationError = fmt.Errorf("error counting rows in destination table: %v", err)
-        }
 	}
 
 
