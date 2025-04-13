@@ -160,7 +160,7 @@ func insertBatchWithFallback(pool *pgxpool.Pool, tableName string, columns []str
     if err == nil {
         return nil
     }else{
-		return fmt.Errorf("error insertingbbatch: err: %v", err)
+		return fmt.Errorf("error insertingbbatch: err: %w", err)
 	}
 
     // if len(batch) == 1 {

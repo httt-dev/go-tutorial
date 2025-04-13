@@ -14,10 +14,30 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/joho/godotenv"
 	go_ora "github.com/sijms/go-ora/v2"
+	"golang.org/x/text/encoding/japanese"
+	"golang.org/x/text/transform"
 )
+
+
+type ColumnInfo struct {
+	Name     string
+	DataType string
+}
+
+type TableSummary struct {
+    SourceTable      string
+    SourceRowCount   int64
+    DestinationTable string
+    CopiedRowCount   int64
+    Status           string
+}
+
+var summaryList []TableSummary
+
 
 var(
 	expectedDBName string
@@ -30,6 +50,10 @@ const (
 	CHAN_QUEUE = 50_000  // 50_000
 	BATCH_SIZE = 50_000  // 50_000
 	LOG_READED_ROWS =  100_000
+
+    CHAN_QUEUE_HAS_CLOB = 50
+	BATCH_SIZE_HAS_CLOB = 50
+	LOG_READED_HAS_CLOB_ROWS =  50
 )
 
 func init() {
@@ -287,20 +311,23 @@ func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, col
     
     if err == nil {
         return nil
-    }
+    }else{
+		return err
+	}
+
     // If the batch contains only one record, log it and return the error
-    if len(batch) == 1 {
-        log.Printf("Error record: %v", batch[0])
-        return err
-    }
-    // Split the batch into two parts and try inserting each part
-    mid := len(batch) / 2
-    err1 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[:mid])
-    err2 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[mid:])
-    if err1 != nil || err2 != nil {
-        return fmt.Errorf("Error inserting split batch: err1: %v, err2: %v", err1, err2)
-    }
-    return nil
+    // if len(batch) == 1 {
+    //     log.Printf("Error record: %v , detail: %w", batch[0], err)
+    //     return err
+    // }
+    // // Split the batch into two parts and try inserting each part
+    // mid := len(batch) / 2
+    // err1 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[:mid])
+    // err2 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[mid:])
+    // if err1 != nil || err2 != nil {
+    //     return fmt.Errorf("Error inserting split batch: err1: %v, err2: %v", err1, err2)
+    // }
+    // return nil
 }
 
 // Worker function to insert data into Oracle
@@ -336,9 +363,10 @@ func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, col
 //     log.Printf("Worker %d: finished processing", workerId)
 // }
 
-func worker(workerId int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
+func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup) {
     defer wg.Done()
-    batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
+
+    // batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
     batch := make([][]interface{}, 0, batchSize)
 
     actualDBName, err := verifyConnection(db)
@@ -352,24 +380,58 @@ func worker(workerId int, db *sql.DB, dstTable string, columns []string, columnT
     }
     log.Printf("Worker %d: connected to the correct database: %s", workerId, actualDBName)
 
-    for row := range dataChan {
-        batch = append(batch, row)
-        if len(batch) >= batchSize {
-            if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
-                errorChan <- fmt.Errorf("Worker %d: error inserting batch: %v", workerId, err)
-            }
-            batch = batch[:0]
-        }
-    }
-    // Insert remaining data in the batch
-    if len(batch) > 0 {
-        if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
-            errorChan <- fmt.Errorf("Worker %d: error inserting last batch: %v", workerId, err)
-        }
-    }
+    // for row := range dataChan {
+    //     batch = append(batch, row)
+    //     if len(batch) >= batchSize {
+    //         if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+    //             errorChan <- fmt.Errorf("Worker %d: error inserting batch: %v", workerId, err)
+    //         }
+    //         batch = batch[:0]
+    //     }
+    // }
+    // // Insert remaining data in the batch
+    // if len(batch) > 0 {
+    //     if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+    //         errorChan <- fmt.Errorf("Worker %d: error inserting last batch: %v", workerId, err)
+    //     }
+    // }
+
+    for{
+		select{
+			case <-ctx.Done():
+				log.Printf("Worker %d: received cancellation signal, stopping...", workerId)
+            	return
+			case row, ok := <-dataChan:
+				if !ok {
+					// Channel closed, process remaining batch
+					if len(batch) > 0 {
+						if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+							errorChan <- fmt.Errorf("worker %d: error inserting last batch: %v", workerId, err)
+							return // Exit immediately if the last batch fails
+						}
+					}
+					log.Printf("Worker %d: finished processing remaining rows", workerId)
+					return
+				}
+				batch = append(batch, row)
+				if len(batch) >= batchSize {
+					if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+						errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
+					}
+					batch = batch[:0]
+				}
+				
+		}
+	}
+
     log.Printf("Worker %d: finished processing", workerId)
 }
 
+
+func timeTrack(start time.Time, name string) {
+	elapsed := time.Since(start)
+	log.Printf("%s took %s", name, elapsed)
+}
 
 func createOraclePool(dsn string) (*sql.DB, error) {
     // Extract host and service information from the DSN
@@ -478,7 +540,8 @@ func parseTableMappings(tableNames string) map[string]string {
         }
         parts := strings.Split(table, ":")
         srcTable := strings.TrimSpace(parts[0])
-        dstTable := srcTable 
+        srcTable = strings.ToUpper(srcTable) // Convert to uppercase for consistency
+        dstTable := strings.ToUpper(srcTable) // Default to source table name   
         if len(parts) > 1 {
             dstTable = strings.TrimSpace(parts[1])
         }
@@ -495,12 +558,93 @@ func extractTableName(table string) string {
     return ""
 }
 
+func printSummary() {
+    log.Println("=== SUMMARY ===")
+    log.Printf("%-20s %-15s %-20s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
+    log.Println(strings.Repeat("-", 80))
+    for _, summary := range summaryList {
+        log.Printf("%-20s %-15d %-20s %-15d %-10s\n",
+            summary.SourceTable, summary.SourceRowCount, summary.DestinationTable, summary.CopiedRowCount, summary.Status)
+    }
+    log.Println(strings.Repeat("-", 80))
+}
+
+
+// Function to get column data types from a table
+func getTableColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
+	query := `
+		SELECT column_name, data_type
+		FROM user_tab_columns
+		WHERE table_name = :1
+		ORDER BY column_id`
+	rows, err := db.Query(query, strings.ToUpper(tableName))
+	if err != nil {
+		return nil, fmt.Errorf("error querying columns: %w", err)
+	}
+	defer rows.Close()
+
+	var columns []ColumnInfo
+	for rows.Next() {
+		var col ColumnInfo
+		if err := rows.Scan(&col.Name, &col.DataType); err != nil {
+			return nil, fmt.Errorf("error scanning column info: %w", err)
+		}
+		columns = append(columns, col)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating column info: %w", err)
+	}
+	if len(columns) == 0 {
+		return nil, fmt.Errorf("no columns found for table %s", tableName)
+	}
+	return columns, nil
+}
+
+// maybeDecodeShiftJIS checks if the string is valid UTF-8 and decodes it from Shift-JIS if not
+func maybeDecodeShiftJIS(s string) string {
+    if utf8.ValidString(s) {
+        return s // already valid UTF-8
+    }
+    decoded, err := decodeShiftJIS(s)
+    if err != nil {
+        return s // fallback to original string if decoding fails
+    }
+    return decoded
+}
+
+// decodeShiftJIS decodes a Shift-JIS encoded string to UTF-8
+func decodeShiftJIS(input string) (string, error) {
+    reader := transform.NewReader(strings.NewReader(input), japanese.ShiftJIS.NewDecoder())
+    decoded, err := io.ReadAll(reader)
+    if err != nil {
+        return "", err
+    }
+    return string(decoded), nil
+}
+
+func hasClobColumn(db *sql.DB, tableName string) (bool, error) {
+    query := `
+        SELECT COUNT(*)
+        FROM user_tab_columns
+        WHERE table_name = :1 AND data_type = 'CLOB'
+    `
+    var count int
+    err := db.QueryRow(query, strings.ToUpper(tableName)).Scan(&count)
+    if err != nil {
+        return false, fmt.Errorf("error checking CLOB column: %w", err)
+    }
+    return count > 0, nil
+}
+
 func main() {
     // Set up logging
     setupLogging()
 
     startTime := time.Now()
     defer func() {
+        // Print summary
+		printSummary()
+
         log.Printf("Total execution time: %v", time.Since(startTime))
     }()
 
@@ -554,7 +698,12 @@ func main() {
     defer dstOracleDB.Close()
 
 	for srcTable, dstTable := range tableMappings {
-		log.Printf("Starting to process table: source=%s, destination=%s", srcTable, dstTable)
+        log.Printf(strings.Repeat("-", 20) + "Starting to process table: source=%s, destination=%s" + strings.Repeat("-", 20), srcTable, dstTable)
+		
+        ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		//log.Printf("Starting to process table: source=%s, destination=%s", srcTable, dstTable)
 		
 		// Disable logging before starting
         err := disableLogging(dstOracleDB, dstTable)
@@ -570,9 +719,9 @@ func main() {
         }(dstTable)
 
 		// Perform the data migration process for the current table
-        err = migrateTable(srcOracleDB, dstOracleDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
+        err = migrateTable(ctx, cancel, srcOracleDB, dstOracleDB, srcTable, dstTable, partitionBy, partitionColumn, filterWhere)
         if err != nil {
-            log.Printf("Error processing table source=%s, destination=%s: %v", srcTable, dstTable, err)
+            log.Printf("\033[31m[ERROR] Error processing table source=%s, destination=%s: %v\033[0m", srcTable, dstTable, err)
             continue
         }
         log.Printf("Finished processing table: source=%s, destination=%s", srcTable, dstTable)
@@ -582,8 +731,24 @@ func main() {
 }
 
 
-func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
-	// Retrieve column names from Oracle
+func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *sql.DB, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
+	var sourceRowCount, copiedRowCount int64
+	var migrationError error
+    chanQueue := CHAN_QUEUE
+    batchSize := BATCH_SIZE
+    logReadedRows := LOG_READED_ROWS
+
+    hasClob,err := hasClobColumn(srcDB, srcTable)
+    if err != nil {
+        log.Fatalf("Error checking CLOB column: %v", err)
+    }
+
+    if hasClob {
+        chanQueue = CHAN_QUEUE_HAS_CLOB
+        batchSize = BATCH_SIZE_HAS_CLOB
+        logReadedRows = LOG_READED_HAS_CLOB_ROWS
+    }
+    // Retrieve column names from Oracle
     dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
     dummyRows, err := srcDB.Query(dummyQuery)
     if err != nil {
@@ -595,8 +760,6 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
     }
     dummyRows.Close()
 
-
-
     // Initialize worker pool for Oracle
     numWorkers := 10
     if s := os.Getenv("PARTITION_COUNT"); s != "" {
@@ -604,23 +767,37 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
             numWorkers = cnt
         }
     }
+
+    partitionCount := numWorkers
+
     // Create a channel to transmit rows of data
-    dataChan := make(chan []interface{}, CHAN_QUEUE)
+    dataChan := make(chan []interface{}, chanQueue)
 
     // Create a channel to receive errors from workers
     errorChan := make(chan error, numWorkers)
 
+    // Goroutine to handle errors from errorChan
+	go func() {
+		for err := range errorChan {
+			if migrationError == nil {
+				migrationError = err
+			} else {
+				log.Printf("Additional error: %v", err)
+			}
+			cancel() // Cancel all workers
+		}
+	}()
+
     extractTableName := extractTableName(dstTable)
+
     var workerWg sync.WaitGroup
     for i := 0; i < numWorkers; i++ {
         workerWg.Add(1)
         // go worker(i, dstDB, extractTableName, columns, nil, dataChan, &workerWg)
-        go worker(i, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg)
+        go worker(ctx, i, batchSize, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg)
     }
 
     // Process data from Oracle in partitioned mode
-    var migrationError error
-
     if strings.ToLower(partitionBy) == "rownum" {
         var totalRows int64
         countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", srcTable, filterWhere)
@@ -630,7 +807,8 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
         }
         log.Printf("Total rows: %d", totalRows)
 
-        partitionCount := numWorkers
+        sourceRowCount = totalRows
+        partitionCount = numWorkers
 
         rangeSize := totalRows / int64(partitionCount)
         if totalRows%int64(partitionCount) != 0 {
@@ -638,6 +816,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
         }
 
         colList := strings.Join(columns, ", ")
+
         var partitionWg sync.WaitGroup
         for i := 0; i < partitionCount; i++ {
             startRow := int64(i)*rangeSize + 1
@@ -662,6 +841,15 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
 
                 query := fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
                 t := time.Now()
+                
+				select {
+				case <-ctx.Done():
+					log.Printf("Partition %d: Received cancellation signal, stopping...", partitionId)
+					return
+				default:
+					// Tiếp tục nếu không có tín hiệu hủy
+				}
+
                 rows, err := srcDB.Query(query)
                 if err != nil {
                     log.Printf("Partition %d: query error: %v", partitionId, err)
@@ -673,26 +861,67 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                 defer rows.Close()
 
                 colCount := len(columns)
+                colTypes, _ := rows.ColumnTypes()
+
                 count := 0
                 scanArgs := make([]interface{}, colCount)
-                for i := range scanArgs {
-                    scanArgs[i] = new(interface{})
+                // for i := range scanArgs {
+                //     scanArgs[i] = new(interface{})
+                // }
+
+                for i := 0; i < colCount; i++ {
+                    dbType := colTypes[i].DatabaseTypeName()
+                    switch dbType {
+                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
+                        var s sql.NullString
+                        scanArgs[i] = &s // use sql.NullString to handle NULL values
+                    case "CLOB":
+                        var raw interface{}
+                        scanArgs[i] = &raw
+                        hasClob = true
+                    default:
+                        var raw interface{}
+                        scanArgs[i] = &raw
+                    }
                 }
 
                 for rows.Next() {
+                    select {
+					case <-ctx.Done():
+						log.Printf("Partition %d: Received cancellation signal while processing rows, stopping...", partitionId)
+						return
+					default:
+						// continue if no cancellation signal
+					}
+
+
                     if err := rows.Scan(scanArgs...); err != nil {
                         log.Printf("Partition %d: row scan error: %v", partitionId, err)
                         migrationError = fmt.Errorf("Partition %d: row scan error: %v", partitionId, err)
                         continue
                     }
                     rowData := make([]interface{}, colCount)
-                    for i, ptr := range scanArgs {
-                        rowData[i] = *(ptr.(*interface{}))
+                    // for i, ptr := range scanArgs {
+                    //     rowData[i] = *(ptr.(*interface{}))
+                    // }
+
+                    for i, v := range scanArgs {
+                        switch val := v.(type) {
+                        case *sql.NullString:
+                            if val.Valid {
+                                rowData[i] = maybeDecodeShiftJIS(val.String)
+                            } else {
+                                rowData[i] = nil
+                            }
+                        default:
+                            rowData[i] = *(v.(*interface{}))
+                        }
                     }
+
                     dataChan <- rowData
                     count++
 
-                    if count%LOG_READED_ROWS == 0 {
+                    if count%logReadedRows == 0 {
                         log.Printf("Partition %d: Read %d rows", partitionId, count)
                     }
                 }
@@ -719,12 +948,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
         }
         log.Printf("Minimum and maximum values of %s: %d - %d", partitionColumn, minVal, maxVal)
 
-        partitionCount := 8
-        if s := os.Getenv("PARTITION_COUNT"); s != "" {
-            if cnt, err := strconv.Atoi(s); err == nil && cnt > 0 {
-                partitionCount = cnt
-            }
-        }
+        partitionCount = numWorkers
 
         rangeSize := (maxVal - minVal + 1) / int64(partitionCount)
         if rangeSize == 0 {
@@ -773,7 +997,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
                     }
                     dataChan <- rowData
                     count++
-                    if count%LOG_READED_ROWS == 0 {
+                    if count%logReadedRows == 0 {
                         log.Printf("Partition %d: Read %d rows", partitionId, count)
                     }
                 }
@@ -815,7 +1039,7 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
             }
             dataChan <- rowData
             count++
-            if count%LOG_READED_ROWS == 0 {
+            if count%logReadedRows == 0 {
                 log.Printf("Read %d rows from Oracle", count)
             }
         }
@@ -835,19 +1059,33 @@ func migrateTable(srcDB, dstDB *sql.DB, srcTable string, dstTable string, partit
     // Check for errors from workers
     close(errorChan)
 
-    for err := range errorChan {
-        if migrationError == nil {
-            migrationError = err
-        } else {
-            log.Printf("Additional error: %v", err)
-        }
-    }
-
     if migrationError != nil {
-        log.Printf("Error occurred while migrating data from table: %s. Error: %v", srcTable, migrationError)
-        return migrationError
-    }
+        //log.Printf("Error occurred while migrating data from table: %s. Error: %v", srcTable, migrationError)
+		cancel() // Cancel all workers
+    }else{
+		log.Printf("Successfully migrated data from table: %s", srcTable)
+		countQuery := fmt.Sprintf("SELECT COUNT(*) FROM %s WHERE 1=1 %s", dstTable , filterWhere)
+        if err := dstDB.QueryRowContext(context.Background(), countQuery).Scan(&copiedRowCount); err != nil {
+            log.Printf("Error counting rows in destination table %s: %v", dstTable, err)
+            migrationError = fmt.Errorf("error counting rows in destination table: %v", err)
+        }
+	}
 
-    log.Printf("Finished migrating data from table: %s", srcTable)
-    return nil
+
+    // Add summary to the list
+    status := "Success"
+    if migrationError != nil {
+        status = "Failed"
+    }
+    summaryList = append(summaryList, TableSummary{
+        SourceTable:      srcTable,
+        SourceRowCount:   sourceRowCount,
+        DestinationTable: dstTable,
+        CopiedRowCount:   copiedRowCount,
+        Status:           status,
+    })
+
+	log.Printf("Finished migrating data from table: %s", srcTable)
+    return migrationError
+
 }
