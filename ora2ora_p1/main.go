@@ -24,6 +24,11 @@ import (
 )
 
 
+type TableMapping struct {
+    SrcTable string
+    DstTable string
+}
+
 type ColumnInfo struct {
 	Name     string
 	DataType string
@@ -534,8 +539,28 @@ func enableLogging(db *sql.DB, tableName string) error {
     return nil
 }
 
-func parseTableMappings(tableNames string) map[string]string {
-    mappings := make(map[string]string)
+// func parseTableMappings(tableNames string) map[string]string {
+//     mappings := make(map[string]string)
+//     tables := strings.Split(tableNames, ",")
+//     for _, table := range tables {
+//         table = strings.TrimSpace(table)
+//         if table == "" {
+//             continue
+//         }
+//         parts := strings.Split(table, ":")
+//         srcTable := strings.TrimSpace(parts[0])
+//         srcTable = strings.ToUpper(srcTable) // Convert to uppercase for consistency
+//         dstTable := strings.ToUpper(srcTable) // Default to source table name   
+//         if len(parts) > 1 {
+//             dstTable = strings.TrimSpace(parts[1])
+//         }
+//         mappings[srcTable] = dstTable
+//     }
+//     return mappings
+// }
+
+func parseTableMappings(tableNames string) []TableMapping {
+    var mappings []TableMapping
     tables := strings.Split(tableNames, ",")
     for _, table := range tables {
         table = strings.TrimSpace(table)
@@ -545,11 +570,11 @@ func parseTableMappings(tableNames string) map[string]string {
         parts := strings.Split(table, ":")
         srcTable := strings.TrimSpace(parts[0])
         srcTable = strings.ToUpper(srcTable) // Convert to uppercase for consistency
-        dstTable := strings.ToUpper(srcTable) // Default to source table name   
+        dstTable := strings.ToUpper(srcTable) // Default to source table name
         if len(parts) > 1 {
             dstTable = strings.TrimSpace(parts[1])
         }
-        mappings[srcTable] = dstTable
+        mappings = append(mappings, TableMapping{SrcTable: srcTable, DstTable: dstTable})
     }
     return mappings
 }
@@ -701,7 +726,10 @@ func main() {
     }
     defer dstOracleDB.Close()
 
-	for srcTable, dstTable := range tableMappings {
+	for _, mapping := range tableMappings {
+        srcTable := mapping.SrcTable
+        dstTable := mapping.DstTable
+        
         log.Printf(strings.Repeat("-", 20) + "Starting to process table: source=%s, destination=%s" + strings.Repeat("-", 20), srcTable, dstTable)
 		
         ctx, cancel := context.WithCancel(context.Background())
