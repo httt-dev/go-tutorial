@@ -18,6 +18,8 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 
+	"github.com/godror/godror"
+	_ "github.com/godror/godror" // Driver Oracle
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
@@ -475,13 +477,13 @@ func extractTableName(table string) string {
 
 func printSummary() {
     log.Println("=== SUMMARY ===")
-    log.Printf("%-20s %-15s %-20s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
-    log.Println(strings.Repeat("-", 80))
+    log.Printf("%-40s %-15s %-40s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
+    log.Println(strings.Repeat("-", 120))
     for _, summary := range summaryList {
-        log.Printf("%-20s %-15d %-20s %-15d %-10s\n",
+        log.Printf("%-40s %-15d %-40s %-15d %-10s\n",
             summary.SourceTable, summary.SourceRowCount, summary.DestinationTable, summary.CopiedRowCount, summary.Status)
     }
-    log.Println(strings.Repeat("-", 80))
+    log.Println(strings.Repeat("-", 120))
 }
 // Function to get column data types from a table
 func getTableColumns(db *sql.DB, tableName string) ([]ColumnInfo, error) {
@@ -549,6 +551,90 @@ func hasClobColumn(db *sql.DB, tableName string) (bool, error) {
     return count > 0, nil
 }
 
+// BuildOracleDSN builds the Oracle DSN string from environment variables.
+func buildOracleDSN() string {
+    oracleUsername := os.Getenv("SRC_ORACLE_USERNAME")
+    oraclePassword := os.Getenv("SRC_ORACLE_PASSWORD")
+    oracleHost := os.Getenv("SRC_ORACLE_HOST")
+    oraclePort := os.Getenv("SRC_ORACLE_PORT")
+    oracleDatabase := os.Getenv("SRC_ORACLE_DATABASE")
+    oraclePrefetchRows := os.Getenv("SRC_ORACLE_PREFETCH_ROWS")
+
+    // Construct the base DSN
+    dsn := fmt.Sprintf("oracle://%s:%s@%s:%s/%s", oracleUsername, oraclePassword, oracleHost, oraclePort, oracleDatabase)
+
+    // Add query parameters if provided
+    if oraclePrefetchRows != "" {
+        dsn = fmt.Sprintf("%s?PREFETCH_ROWS=%s", dsn, oraclePrefetchRows)
+    }
+
+    return dsn
+}
+
+// buildGodrorDSN builds the Oracle DSN string for the godror library from environment variables.
+func buildGodrorDSN() string {
+    oracleUsername := os.Getenv("SRC_ORACLE_USERNAME")
+    oraclePassword := os.Getenv("SRC_ORACLE_PASSWORD")
+    oracleHost := os.Getenv("SRC_ORACLE_HOST")
+    oraclePort := os.Getenv("SRC_ORACLE_PORT")
+    oracleDatabase := os.Getenv("SRC_ORACLE_DATABASE")
+
+    // Construct the DSN in the format: username/password@host:port/database
+    dsn := fmt.Sprintf("%s/%s@%s:%s/%s", oracleUsername, oraclePassword, oracleHost, oraclePort, oracleDatabase)
+    return dsn
+}
+
+// BuildPostgresDSN builds the PostgreSQL DSN string from environment variables.
+func buildPostgresDSN() string {
+    postgresUsername := os.Getenv("DST_POSTGRES_USERNAME")
+    postgresPassword := os.Getenv("DST_POSTGRES_PASSWORD")
+    postgresHost := os.Getenv("DST_POSTGRES_HOST")
+    postgresPort := os.Getenv("DST_POSTGRES_PORT")
+    postgresDatabase := os.Getenv("DST_POSTGRES_DATABASE")
+
+    // Construct the DSN
+    dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s", postgresUsername, postgresPassword, postgresHost, postgresPort, postgresDatabase)
+    return dsn
+}
+
+// createOraclePoolUseGodrorDriver creates a connection pool for Oracle using the godror driver
+// must be instal oracle client and set environment variable ORACLE_HOME
+func createOraclePoolUseGodrorDriver(dsn string, timezone string) (*sql.DB, error) {
+	// parsing DSN
+	params, err := godror.ParseDSN(dsn)
+	if err != nil {
+		return nil, fmt.Errorf("error when parsing DSN: %w", err)
+	}
+
+	// convert timezone to *time.Location
+	loc, err := time.LoadLocation(timezone)
+	if err != nil {
+		return nil, fmt.Errorf("error load timezone %s: %w", timezone, err)
+	}
+	params.Timezone = loc 
+
+	// Set pooling options (if needed)
+	params.SessionTimeout = 60 * time.Second
+	params.WaitTimeout = 30 * time.Second
+	params.MaxSessions = 20
+	params.MinSessions = 5
+	params.SessionIncrement = 2
+	params.Charset = "UTF-8"
+	
+	// Set pooling options (if needed)
+	db, err := sql.Open("godror", params.StringWithPassword())
+	if err != nil {
+		return nil, fmt.Errorf("error connecting to Oracle: %w", err)
+	}
+
+	// Test the connection
+	if err = db.Ping(); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("Successfully connected to Oracle. %w", err)
+	}
+
+	return db, nil
+}
 
 func main() {
     // Set up logging
@@ -563,12 +649,17 @@ func main() {
     }()
 
     // Retrieve required environment variables
-    srcOracleDSN = os.Getenv("SRC_ORACLE_DSN")
-    dstPostgresDSN = os.Getenv("DST_POSTGRES_DSN")
+
+    srcOracleDSN := buildOracleDSN()
+    fmt.Println("Oracle DSN:", srcOracleDSN)
+
+    dstPostgresDSN := buildPostgresDSN()
+    fmt.Println("Postgres DSN:", dstPostgresDSN)
+
     expectedDBName = os.Getenv("DESTINATION_DB_NAME")
 
     if srcOracleDSN == "" || dstPostgresDSN == "" || expectedDBName == "" {
-        log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_POSTGRES_DSN, DESTINATION_DB_NAME")
+        log.Fatal("Please set the environment variables for connections, including DESTINATION_DB_NAME")
     }
 
 	tableNames := os.Getenv("TABLE_NAME")
@@ -608,8 +699,8 @@ func main() {
 
 
 	for _, mapping := range tableMappings {
-        srcTable := mapping.SrcTable
-        dstTable := strings.ToLower(mapping.DstTable)
+        srcTable := extractTableName(mapping.SrcTable)
+        dstTable := strings.ToLower(extractTableName(mapping.DstTable))
 
 		log.Printf(strings.Repeat("-", 20) + "Starting to process table: source=%s, destination=%s" + strings.Repeat("-", 20), srcTable, dstTable)
 		

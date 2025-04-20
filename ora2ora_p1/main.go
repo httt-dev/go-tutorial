@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -22,6 +23,16 @@ import (
 	"golang.org/x/text/encoding/japanese"
 	"golang.org/x/text/transform"
 )
+
+// Struct để chứa thông tin
+type OracleConfig struct {
+	Username      string
+	Password      string
+	Host          string
+	Port          int
+	ServiceName   string
+	PrefetchRows  int
+}
 
 
 type TableMapping struct {
@@ -53,10 +64,12 @@ var(
 )
 
 const (
-	CHAN_QUEUE = 50_000  // 50_000
-	BATCH_SIZE = 50_000  // 50_000
+    PREFETCH_ROWS = 10_000
+	CHAN_QUEUE = 100_000  // 50_000
+	BATCH_SIZE = 100_000  // 50_000
 	LOG_READED_ROWS =  100_000
 
+    PREFETCH_ROWS_HAS_CLOB = 500
     CHAN_QUEUE_HAS_CLOB = 50
 	BATCH_SIZE_HAS_CLOB = 50
 	LOG_READED_HAS_CLOB_ROWS =  50
@@ -171,6 +184,65 @@ func insertBatchBulkMode(dstOracleDSN string, tableName string, columns []string
     
 	return nil
 }
+
+// // insert use BulkCopy stream 
+// // condition: table must be do not trigger , FK , index
+// func insertBatchWithStream(databaseUrl string, tableName string, columns []string, batch [][]interface{}) error {
+// 	// Parse config từ databaseUrl
+// 	// config, err := go_ora.ParseConfig(databaseUrl)
+// 	// if err != nil {
+// 	// 	return fmt.Errorf("error parsing database URL: %w", err)
+// 	// }
+
+// 	//  create connection
+// 	conn, err := go_ora.NewConnection(databaseUrl, nil)
+// 	if err != nil {
+// 		return fmt.Errorf("error creating connection: %w", err)
+// 	}
+
+// 	//  Open connection
+// 	err = conn.Open()
+// 	if err != nil {
+// 		return fmt.Errorf("error opening connection: %w", err)
+// 	}
+// 	defer conn.Close()
+
+// 	//  create BulkCopy
+// 	bulk := go_ora.NewBulkCopy(conn, tableName)
+// 	bulk.ColumnNames = columns
+
+// 	//  start stream
+// 	err = bulk.StartStream()
+// 	if err != nil {
+// 		return fmt.Errorf("error starting bulk stream: %w", err)
+// 	}
+
+// 	// send data to stream
+// 	for _, row := range batch {
+// 		err = bulk.AddRow(row...)
+// 		if err != nil {
+// 			_ = bulk.Abort()
+// 			return fmt.Errorf("error adding row: %w", err)
+// 		}
+// 	}
+
+// 	// end stream
+// 	err = bulk.EndStream()
+// 	if err != nil {
+// 		_ = bulk.Abort()
+// 		return fmt.Errorf("error ending bulk stream: %w", err)
+// 	}
+
+// 	// Commit
+// 	err = bulk.Commit()
+// 	if err != nil {
+// 		_ = bulk.Abort()
+// 		return fmt.Errorf("error committing bulk insert: %w", err)
+// 	}
+
+// 	fmt.Printf("%d rows copied using BulkCopy\n", len(batch))
+// 	return nil
+// }
 
 
 func insertBatch(db *sql.DB, tableName string, columns []string, batch [][]interface{}) error {
@@ -306,34 +378,36 @@ func formatValue(value interface{}) string {
 }
 
 // insertBatchWithFallback 
-func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}) error {
+func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, columnTypes []interface{}, batch [][]interface{}, hasClob bool) error {
     var err error
     // Check if bulk insert mode is enabled
     if bulkInsertMode == "1" {
         err = insertBatchBulkMode(dstOracleDSN, tableName, columns, batch)
     }else{
-        err = insertBatch(db, tableName, columns, batch)    
+        err = insertBatch(db, tableName, columns, batch) 
     }
     
     if err == nil {
         return nil
-    }else{
+    
+    }else if hasClob ==false{
 		return err
-	}
+	}else if hasClob == true{
+        // If the batch contains only one record, log it and return the error
+        if len(batch) == 1 {
+            log.Printf("Error record: %v , detail: %w", batch[0], err)
+            return err
+        }
+        // Split the batch into two parts and try inserting each part
+        mid := len(batch) / 2
+        err1 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[:mid], hasClob)
+        err2 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[mid:], hasClob)
+        if err1 != nil || err2 != nil {
+            return fmt.Errorf("Error inserting split batch: err1: %v, err2: %v", err1, err2)
+        }
+    }
+    return nil
 
-    // If the batch contains only one record, log it and return the error
-    // if len(batch) == 1 {
-    //     log.Printf("Error record: %v , detail: %w", batch[0], err)
-    //     return err
-    // }
-    // // Split the batch into two parts and try inserting each part
-    // mid := len(batch) / 2
-    // err1 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[:mid])
-    // err2 := insertBatchWithFallback(db, tableName, columns, columnTypes, batch[mid:])
-    // if err1 != nil || err2 != nil {
-    //     return fmt.Errorf("Error inserting split batch: err1: %v, err2: %v", err1, err2)
-    // }
-    // return nil
 }
 
 // Worker function to insert data into Oracle
@@ -369,7 +443,7 @@ func insertBatchWithFallback(db *sql.DB, tableName string, columns []string, col
 //     log.Printf("Worker %d: finished processing", workerId)
 // }
 
-func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup, copiedRowCount *int64) {
+func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable string, columns []string, columnTypes []interface{}, dataChan <-chan []interface{}, errorChan chan<- error, wg *sync.WaitGroup, copiedRowCount *int64, hasClob bool) {
     defer wg.Done()
 
     // batchSize := BATCH_SIZE // Number of rows per batch (adjustable)
@@ -411,7 +485,7 @@ func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable
 				if !ok {
 					// Channel closed, process remaining batch
 					if len(batch) > 0 {
-						if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+						if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch, hasClob); err != nil {
 							errorChan <- fmt.Errorf("worker %d: error inserting last batch: %v", workerId, err)
 							return // Exit immediately if the last batch fails
 						}
@@ -422,7 +496,7 @@ func worker(ctx context.Context,workerId int,batchSize int, db *sql.DB, dstTable
 				}
 				batch = append(batch, row)
 				if len(batch) >= batchSize {
-					if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
+					if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch, hasClob); err != nil {
 						errorChan <- fmt.Errorf("worker %d: error inserting batch: %v", workerId, err)
 					}else {
                         atomic.AddInt64(copiedRowCount, int64(len(batch))) // Update the count
@@ -442,7 +516,70 @@ func timeTrack(start time.Time, name string) {
 	log.Printf("%s took %s", name, elapsed)
 }
 
+func parseOracleDSN(dsn string) (*OracleConfig, error) {
+	// remove "oracle://" prefix if it exists
+	dsn = strings.TrimPrefix(dsn, "oracle://")
+
+	// parse the DSN using url.Parse
+	u, err := url.Parse("//" + dsn) // cần thêm '//' để url.Parse hiểu đúng
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse DSN: %v", err)
+	}
+
+	// get user and password
+	user := u.User.Username()
+	pass, _ := u.User.Password()
+
+	// get host and port
+	host := u.Hostname()
+	portStr := u.Port()
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid port: %v", err)
+	}
+
+	// get service name
+	serviceName := strings.TrimPrefix(u.Path, "/")
+
+	// get prefetch rows
+	prefetchRows := 10_000 // default value
+	if prefetchStr := u.Query().Get("PREFETCH_ROWS"); prefetchStr != "" {
+		prefetchRows, err = strconv.Atoi(prefetchStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid PREFETCH_ROWS: %v", err)
+		}
+	}
+    
+    log.Printf("Parsed Oracle DSN: user=%s, password=%s, host=%s, port=%d, serviceName=%s, prefetchRows=%d", user, pass, host, port, serviceName, prefetchRows)
+	
+    return &OracleConfig{
+		Username:     user,
+		Password:     pass,
+		Host:         host,
+		Port:         port,
+		ServiceName:  serviceName,
+		PrefetchRows: prefetchRows,
+	}, nil
+}
+
 func createOraclePool(dsn string) (*sql.DB, error) {
+
+    config, err := parseOracleDSN(dsn)
+	if err != nil {
+		fmt.Println("Error parsing DSN:", err)
+		return nil, err
+	}
+    urlOptions := map[string]string {
+        // "TRACE FILE": "trace.log",
+        //"charset": "UTF8",
+	    // "client charset": "UTF8",
+        "LOB FETCH": "stream", // other value "POST" , "PRE" , "STREAM" , default "inline"
+        "PREFETCH_ROWS": fmt.Sprintf("%d", config.PrefetchRows),
+      }
+
+    dsn = go_ora.BuildUrl(config.Host, config.Port, config.ServiceName, config.Username, config.Password, urlOptions)
+
+	fmt.Printf("Parsed Config: %+v\n", config)
     // Extract host and service information from the DSN
     host, service := extractHostAndService(dsn)
     log.Printf("Connecting to Oracle at host: %s, service: %s", host, service)
@@ -828,7 +965,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
     for i := 0; i < numWorkers; i++ {
         workerWg.Add(1)
         // go worker(i, dstDB, extractTableName, columns, nil, dataChan, &workerWg)
-        go worker(ctx, i, batchSize, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg, &copiedRowCount)
+        go worker(ctx, i, batchSize, dstDB, extractTableName, columns, nil, dataChan, errorChan, &workerWg, &copiedRowCount,hasClob)
     }
 
     // Process data from Oracle in partitioned mode
@@ -906,10 +1043,14 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
                 for i := 0; i < colCount; i++ {
                     dbType := colTypes[i].DatabaseTypeName()
                     switch dbType {
-                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT", "CLOB":  //CLOB??
+                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
                         var s sql.NullString
                         scanArgs[i] = &s // use sql.NullString to handle NULL values
-                        
+                    case "CLOB":
+                        var clob go_ora.Clob 
+                        scanArgs[i] = &clob
+                        // var clob sql.NullString // use sql.NullString to handle NULL values
+                        // scanArgs[i] = &clob
                     default:
                         var raw interface{}
                         scanArgs[i] = &raw
@@ -938,12 +1079,29 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
 
                     for i, v := range scanArgs {
                         switch val := v.(type) {
-                        case *sql.NullString:
-                            if val.Valid {
-                                rowData[i] = maybeDecodeShiftJIS(val.String)
+
+                        case *go_ora.Clob: 
+                            if val != nil && val.Valid {
+                                rowData[i] = val 
                             } else {
                                 rowData[i] = nil
                             }
+
+                        case *sql.NullString:
+                            if val.Valid {
+                                rowData[i] = maybeDecodeShiftJIS(val.String)
+                                // rowData[i] = val.String
+                            } else {
+                                rowData[i] = nil
+                            }
+
+                        // case *[]byte: // Handle CLOB as []byte
+                        //     if val != nil {
+                        //         rowData[i] = string(*val) // Convert []byte to string
+                        //     } else {
+                        //         rowData[i] = nil
+                        //     }
+
                         default:
                             rowData[i] = *(v.(*interface{}))
                         }
