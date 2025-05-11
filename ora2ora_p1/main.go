@@ -802,6 +802,45 @@ func hasClobColumn(db *sql.DB, tableName string) (bool, error) {
     return count > 0, nil
 }
 
+func getPrimaryKeyColumns(db *sql.DB, tableName string) (string, error) {
+    query := `
+        SELECT cols.column_name
+        FROM all_constraints cons
+        JOIN all_cons_columns cols
+          ON cons.owner = cols.owner
+         AND cons.constraint_name = cols.constraint_name
+        WHERE cons.constraint_type = 'P'
+          AND cons.table_name = :1
+          -- AND cons.owner = SYS_CONTEXT('USERENV', 'CURRENT_SCHEMA')
+        ORDER BY cols.position
+    `
+
+    rows, err := db.Query(query, strings.ToUpper(tableName))
+    if err != nil {
+        return "", fmt.Errorf("query failed: %w", err)
+    }
+    defer rows.Close()
+
+    var columns []string
+    for rows.Next() {
+        var col string
+        if err := rows.Scan(&col); err != nil {
+            return "", fmt.Errorf("scan failed: %w", err)
+        }
+        columns = append(columns, col)
+    }
+
+    if err := rows.Err(); err != nil {
+        return "", fmt.Errorf("row iteration error: %w", err)
+    }
+
+    if len(columns) == 0 {
+        return "", fmt.Errorf("no primary key found for table %s", tableName)
+    }
+
+    return strings.Join(columns, ", "), nil
+}
+
 func main() {
     // Set up logging
     setupLogging()
@@ -988,6 +1027,28 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
 
         colList := strings.Join(columns, ", ")
 
+        var stmt *sql.Stmt
+        var query string
+        // prepare the query
+        if partitionCount <= 1 {
+            query = fmt.Sprintf("SELECT %s FROM %s t WHERE 1=1 %s", colList, srcTable, filterWhere)
+        } else {
+            query = fmt.Sprintf(`
+                                    SELECT %s FROM (
+                                        SELECT t.*, ROWNUM rnum FROM (
+                                            SELECT * FROM %s t WHERE 1=1 %s ORDER BY ROWNUM
+                                        ) t WHERE ROWNUM <= :endRow
+                                    ) WHERE rnum >= :startRow
+                                `, colList, srcTable, filterWhere)
+                            
+        }
+
+        stmt, err = srcDB.Prepare(query)
+        if err != nil {
+            log.Fatal(err)
+        }
+        defer stmt.Close() 
+
         var partitionWg sync.WaitGroup
         for i := 0; i < partitionCount; i++ {
             startRow := int64(i)*rangeSize + 1
@@ -1004,24 +1065,34 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
                     log.Printf("call done()")
                     partitionWg.Done()
                 }()
-                
+                var rows *sql.Rows
+                t := time.Now()
+
                 if startRow > endRow {
                     log.Printf("Partition %d: No data to process (startRow: %d, endRow: %d)", partitionId, startRow, endRow)
                     return
                 }
-
-                query := fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
-                t := time.Now()
                 
-				select {
-				case <-ctx.Done():
-					log.Printf("Partition %d: Received cancellation signal, stopping...", partitionId)
-					return
-				default:
-					// continue if no cancellation signal
+                select {
+                    case <-ctx.Done():
+                        log.Printf("Partition %d: Received cancellation signal, stopping...", partitionId)
+                        return
+                    default:
+                        // continue if no cancellation signal
 				}
 
-                rows, err := srcDB.Query(query)
+                // query = fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
+                // query = fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN :startRow AND :endRow", colList, srcTable, filterWhere)
+                if partitionCount <= 1 {
+			        rows, err = stmt.Query()
+                } else {
+                    log.Printf("Partition %d: Querying rows from %d to %d", partitionId, startRow, endRow)
+                    rows, err = stmt.Query(sql.Named("endRow", endRow), sql.Named("startRow", startRow))
+                }
+                
+                // rows, err := srcDB.Query(query)
+                // rows, err := stmt.Query(sql.Named("endRow", endRow), sql.Named("startRow", startRow))
+
                 if err != nil {
                     log.Printf("Partition %d: query error: %v", partitionId, err)
                     migrationError = fmt.Errorf("Partition %d: query error: %v", partitionId, err)
