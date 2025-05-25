@@ -1,0 +1,28 @@
+{
+    "DatabaseSettings": [
+        {
+            "ConnectionName": "Oracle Docker Local",
+            "DbType": "oracle",
+            "User": "AIPBODEV",
+            "Password": "Abc12345",
+            "ConnectString": "localhost:1522/ORCLPDB1",
+            "Pooling": true,
+            "MinPoolSize": 5,
+            "MaxPoolSize": 20
+        },
+        
+        {
+            "ConnectionName": "PG LOCAL",
+            "DbType": "postgres",
+            "User": "postgres",
+            "Password": "Abc12345",
+            "Host": "localhost",
+            "Port": 5432,
+            "Database": "bo_dev_jp_utf8",
+            "Pooling": true,
+            "MinPoolSize": 5,
+            "MaxPoolSize": 20
+        }
+
+    ]
+}
