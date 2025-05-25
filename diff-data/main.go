@@ -66,6 +66,32 @@ func (m myTheme) Size(name fyne.ThemeSizeName) float32 {
 	return theme.DefaultTheme().Size(name)
 }
 
+func initLogFile() *os.File {
+	// Tạo thư mục nếu chưa có
+	err := os.MkdirAll("log", os.ModePerm)
+	if err != nil {
+		log.Fatalf("Could not create log directory: %v", err)
+	}
+
+	// Tạo tên file theo định dạng yyyyMMdd_HHmmssffff.log
+	now := time.Now()
+	filename := now.Format("20060102_150405.0000") + ".log"
+	fullPath := filepath.Join("log", filename)
+
+	// Tạo file log
+	logFile, err := os.OpenFile(fullPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+	}
+
+	// Cấu hình log chuẩn ra file
+	log.SetOutput(logFile)
+	log.SetFlags(log.Ldate | log.Ltime | log.Lshortfile)
+
+	log.Printf("Log started: %s\n", filename)
+	return logFile
+}
+
 func loadConfig(file string) (*Config, error) {
 	f, err := os.Open(file)
 	if err != nil {
@@ -114,7 +140,21 @@ func executeQueryOracle(cfg DBConfig, query, filename string, wg *sync.WaitGroup
 	}
 	defer rs.Close()
 
+	log.Println("Starting export oracle data to CSV")
 	err = writeCSVFromOracleRows(rs, filename)
+
+	// done := make(chan bool)
+	// go func() {
+
+	// 	if err != nil {
+	// 	log.Println("Starting export oracle data to CSV")
+	// err = writeCSVFromOracleRows(rs, filename)
+	// 		errChan <- err
+	// 	}
+	// 	done <- true
+	// }()
+	// <-done
+
 	if err != nil {
 		errChan <- err
 	} else {
@@ -142,7 +182,20 @@ func executeQueryPostgres(cfg DBConfig, query, filename string, wg *sync.WaitGro
 	}
 	defer rows.Close()
 
+	log.Println("Starting export postgres data to CSV")
 	err = writeCSVFromPgxRows(rows, filename)
+
+	// done := make(chan bool)
+	// go func() {
+	// 	log.Println("Starting export postgres data to CSV")
+	// 	err = writeCSVFromPgxRows(rows, filename)
+	// 	if err != nil {
+	// 		errChan <- err
+	// 	}
+	// 	done <- true
+	// }()
+	// <-done
+
 	if err != nil {
 		errChan <- err
 	} else {
@@ -253,6 +306,11 @@ func writeCSVFromPgxRows(rows pgx.Rows, filename string) error {
 }
 
 func main() {
+	logFile := initLogFile()
+	defer logFile.Close()
+
+	log.Println("Application started")
+
 	a := app.New()
 	a.Settings().SetTheme(myTheme{})
 	w := a.NewWindow("DB Query Comparator")
