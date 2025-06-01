@@ -46,13 +46,13 @@ var (
 )
 
 const (
-	CHAN_QUEUE      = 100_000
-	BATCH_SIZE      = 100_000
-	LOG_READED_ROWS = 100_000
+	CHAN_QUEUE      = 20_000
+	BATCH_SIZE      = 20_000
+	LOG_READED_ROWS = 20_000
 
-	CHAN_QUEUE_HAS_TEXT      = 100_000
-	BATCH_SIZE_HAS_TEXT      = 100_000
-	LOG_READED_HAS_TEXT_ROWS = 100_000
+	CHAN_QUEUE_HAS_TEXT      = 100
+	BATCH_SIZE_HAS_TEXT      = 100
+	LOG_READED_HAS_TEXT_ROWS = 100
 )
 
 func init() {
@@ -233,7 +233,7 @@ func hasTextColumn(db *sql.DB, tableName string) (bool, error) {
         FROM information_schema.columns 
         WHERE table_schema = DATABASE() 
         AND table_name = ? 
-        AND data_type IN ('text', 'longtext', 'mediumtext', 'tinytext')
+        AND data_type IN ('longtext')
     `
 	var count int
 	err := db.QueryRow(query, tableName).Scan(&count)
@@ -311,7 +311,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
 		chanQueue = CHAN_QUEUE_HAS_TEXT
 		batchSize = BATCH_SIZE_HAS_TEXT
 		logReadedRows = LOG_READED_HAS_TEXT_ROWS
-		log.Println("TEXT column detected, adjusting batch size and channel queue")
+		log.Println("LONGTEXT column detected, adjusting batch size and channel queue")
 	}
 
 	dummyQuery := fmt.Sprintf("SELECT * FROM `%s` WHERE 1=0", srcTable)

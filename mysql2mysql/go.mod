@@ -1,6 +1,6 @@
 module httt-dev/mysql2mysql
 
-go 1.22.4
+go 1.22.12
 
 require (
 	github.com/go-sql-driver/mysql v1.9.2

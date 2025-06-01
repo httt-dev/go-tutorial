@@ -701,6 +701,11 @@ func migrateTable(srcDB, dstDB *sql.DB, oracleDriverName string, srcTable string
 
                 query := fmt.Sprintf("SELECT %s FROM (SELECT t.*, rownum rnum FROM %s t WHERE 1=1 %s) WHERE rnum BETWEEN %d AND %d", colList, srcTable, filterWhere, startRow, endRow)
  
+                if partitionCount <= 1 {
+                    // select all rows when use only one partition
+                    query = fmt.Sprintf("SELECT %s FROM %s WHERE 1=1 %s", colList, srcTable, filterWhere)
+                }
+                
                 var rows *sql.Rows
                 var err error
 

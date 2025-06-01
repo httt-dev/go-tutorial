@@ -61,6 +61,7 @@ var(
     srcOracleDSN string
     dstOracleDSN  string
     bulkInsertMode string
+    lobDataTypeCheck string
 )
 
 const (
@@ -726,13 +727,13 @@ func extractTableName(table string) string {
 
 func printSummary() {
     log.Println("=== SUMMARY ===")
-    log.Printf("%-20s %-15s %-20s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
-    log.Println(strings.Repeat("-", 80))
+    log.Printf("%-40s %-15s %-40s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
+    log.Println(strings.Repeat("-", 120))
     for _, summary := range summaryList {
-        log.Printf("%-20s %-15d %-20s %-15d %-10s\n",
+        log.Printf("%-40s %-15d %-40s %-15d %-10s\n",
             summary.SourceTable, summary.SourceRowCount, summary.DestinationTable, summary.CopiedRowCount, summary.Status)
     }
-    log.Println(strings.Repeat("-", 80))
+    log.Println(strings.Repeat("-", 120))
 }
 
 
@@ -863,6 +864,11 @@ func main() {
         bulkInsertMode = "0"
     }
 
+    lobDataTypeCheck = os.Getenv("LOB_CHECK")
+    if lobDataTypeCheck == "" {
+        lobDataTypeCheck = "0"
+    }
+
     if srcOracleDSN == "" || dstOracleDSN == "" || expectedDBName == "" {
         log.Fatal("Please set the environment variables SRC_ORACLE_DSN, DST_ORACLE_DSN, DESTINATION_DB_NAME")
     }
@@ -951,7 +957,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
         log.Fatalf("Error checking CLOB column: %v", err)
     }
 
-    if hasClob {
+    if hasClob && lobDataTypeCheck == "1" {
         chanQueue = CHAN_QUEUE_HAS_CLOB
         batchSize = BATCH_SIZE_HAS_CLOB
         logReadedRows = LOG_READED_HAS_CLOB_ROWS
@@ -1111,20 +1117,32 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
                 //     scanArgs[i] = new(interface{})
                 // }
 
+                // for i := 0; i < colCount; i++ {
+                //     dbType := colTypes[i].DatabaseTypeName()
+                //     switch dbType {
+                //     case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
+                //         var s sql.NullString
+                //         scanArgs[i] = &s // use sql.NullString to handle NULL values
+                //     case "CLOB":
+                //         var clob go_ora.Clob 
+                //         scanArgs[i] = &clob
+                //         // var clob sql.NullString // use sql.NullString to handle NULL values
+                //         // scanArgs[i] = &clob
+                //     default:
+                //         var raw interface{}
+                //         scanArgs[i] = &raw
+                //     }
+                // }
+
                 for i := 0; i < colCount; i++ {
                     dbType := colTypes[i].DatabaseTypeName()
                     switch dbType {
-                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT":  //CLOB??
+                    case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT" , "CLOB":  //CLOB??
                         var s sql.NullString
                         scanArgs[i] = &s // use sql.NullString to handle NULL values
-                    case "CLOB":
-                        var clob go_ora.Clob 
-                        scanArgs[i] = &clob
-                        // var clob sql.NullString // use sql.NullString to handle NULL values
-                        // scanArgs[i] = &clob
+                        
                     default:
-                        var raw interface{}
-                        scanArgs[i] = &raw
+                        scanArgs[i] = new(interface{})
                     }
                 }
 
@@ -1144,35 +1162,49 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB, dstDB *
                         continue
                     }
                     rowData := make([]interface{}, colCount)
+                    
                     // for i, ptr := range scanArgs {
                     //     rowData[i] = *(ptr.(*interface{}))
                     // }
 
+                    // for i, v := range scanArgs {
+                    //     switch val := v.(type) {
+
+                    //     case *go_ora.Clob: 
+                    //         if val != nil && val.Valid {
+                    //             rowData[i] = val 
+                    //         } else {
+                    //             rowData[i] = nil
+                    //         }
+
+                    //     case *sql.NullString:
+                    //         if val.Valid {
+                    //             rowData[i] = maybeDecodeShiftJIS(val.String)
+                    //             // rowData[i] = val.String
+                    //         } else {
+                    //             rowData[i] = nil
+                    //         }
+
+                    //     // case *[]byte: // Handle CLOB as []byte
+                    //     //     if val != nil {
+                    //     //         rowData[i] = string(*val) // Convert []byte to string
+                    //     //     } else {
+                    //     //         rowData[i] = nil
+                    //     //     }
+
+                    //     default:
+                    //         rowData[i] = *(v.(*interface{}))
+                    //     }
+                    // }
+
                     for i, v := range scanArgs {
                         switch val := v.(type) {
-
-                        case *go_ora.Clob: 
-                            if val != nil && val.Valid {
-                                rowData[i] = val 
-                            } else {
-                                rowData[i] = nil
-                            }
-
                         case *sql.NullString:
                             if val.Valid {
                                 rowData[i] = maybeDecodeShiftJIS(val.String)
-                                // rowData[i] = val.String
                             } else {
                                 rowData[i] = nil
                             }
-
-                        // case *[]byte: // Handle CLOB as []byte
-                        //     if val != nil {
-                        //         rowData[i] = string(*val) // Convert []byte to string
-                        //     } else {
-                        //         rowData[i] = nil
-                        //     }
-
                         default:
                             rowData[i] = *(v.(*interface{}))
                         }
