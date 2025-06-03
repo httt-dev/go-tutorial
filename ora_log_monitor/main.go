@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"log"
 	"net/http"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -45,19 +47,54 @@ func reconstructQuery(sqlText, sqlBind string) string {
 	if sqlBind == "" || !strings.Contains(sqlText, ":") {
 		return sqlText
 	}
-	// Assume sqlBind format: "#1(10): 'value1', #2(3): 123"
-	bindParts := strings.Split(sqlBind, ",")
-	result := sqlText
+
+	// 1. Tìm danh sách bind theo tên từ câu SQL (ví dụ :start, :end)
+	bindNameRegex := regexp.MustCompile(`:([a-zA-Z_][a-zA-Z0-9_]*)`)
+	matches := bindNameRegex.FindAllStringSubmatch(sqlText, -1)
+
+	var bindNames []string
+	seen := map[string]bool{}
+	for _, match := range matches {
+		if len(match) > 1 && !seen[match[1]] {
+			bindNames = append(bindNames, match[1])
+			seen[match[1]] = true
+		}
+	}
+
+	// 2. Tách các bind value theo thứ tự: #1(4):'abc' -> 1:'abc'
+	bindValues := make(map[int]string)
+	bindParts := strings.Fields(sqlBind)
 	for _, part := range bindParts {
 		if strings.Contains(part, ":") {
-			bindInfo := strings.SplitN(part, ":", 2)
-			if len(bindInfo) >= 2 {
-				bindVar := strings.TrimSpace(bindInfo[0])
-				bindValue := strings.Trim(bindInfo[1], "' ")
-				result = strings.Replace(result, ":"+bindVar, "'"+bindValue+"'", 1)
+			parts := strings.SplitN(part, ":", 2)
+			if len(parts) != 2 {
+				continue
+			}
+			prefix := parts[0] // #1(4)
+			value := parts[1]  // 'abc'
+
+			// Extract number from #<num>(...)
+			re := regexp.MustCompile(`#(\d+)\(`)
+			numMatch := re.FindStringSubmatch(prefix)
+			if len(numMatch) == 2 {
+				index := numMatch[1]
+				// Convert index string to int
+				if i, err := strconv.Atoi(index); err == nil {
+					bindValues[i] = value
+				}
 			}
 		}
 	}
+
+	// 3. Gán giá trị vào đúng tên bind theo thứ tự
+	result := sqlText
+	for i, name := range bindNames {
+		value := bindValues[i+1] // vì bind index bắt đầu từ 1
+		if value != "" {
+			result = strings.Replace(result, ":"+name, value, 1)
+		}
+	}
+
 	return result
 }
 
@@ -100,7 +137,7 @@ func tailAuditTrail() {
 
 		// Query DBA_AUDIT_TRAIL for SELECT, INSERT, UPDATE, DELETE
 		rows, err := db.Query(`
-            SELECT TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP, USERNAME, SQL_TEXT, SQL_BIND
+            SELECT TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP, USERHOST,USERNAME, SQL_TEXT, SQL_BIND
             FROM DBA_AUDIT_TRAIL
             WHERE TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') > :1
               AND ACTION_NAME IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')

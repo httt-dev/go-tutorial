@@ -1,0 +1,44 @@
+Cấu hình đọc thông tin SELECT , INSERT , UPDATE , DELETE trong Oracle
+
+docker exec -it oracle19c bash
+
+sqlplus / as sysdba
+
+ ALTER SESSION SET CONTAINER=ORCLPDB1;
+
+SELECT VALUE FROM V$OPTION WHERE PARAMETER = 'Unified Auditing';
+
+Giá trị là FALSE
+
+ ALTER SYSTEM SET AUDIT_TRAIL=DB,EXTENDED SCOPE=SPFILE;
+
+SHUTDOWN IMMEDIATE;
+STARTUP;
+
+
+AUDIT SELECT TABLE, INSERT TABLE, UPDATE TABLE, DELETE TABLE BY ACCESS;
+
+Nếu setting cho schema : 
+
+AUDIT SELECT TABLE, INSERT TABLE, UPDATE TABLE, DELETE TABLE BY  SCHEMA_NAME    BY ACCESS;
+
+
+SELECT VALUE FROM V$PARAMETER WHERE NAME = 'audit_trail';
+
+VALUE
+--------------------------------------------------------------------------------
+DB, EXTENDED
+
+
+Khởi động lại Oracle 
+
+Thực thi 1 query nào đó 
+Để get các thông tin về query thì thực hiện : 
+
+SELECT   * 
+FROM DBA_AUDIT_TRAIL
+WHERE ACTION_NAME IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
+  AND USERNAME NOT IN ('SYS', 'SYSTEM', 'SYSMAN')
+  AND OWNER IN ('SCHEMA_NAME')
+  AND (SQL_TEXT NOT LIKE 'SELECT%FROM V$%' AND SQL_TEXT NOT LIKE 'SELECT%FROM DBA_%')
+ORDER BY TIMESTAMP DESC;

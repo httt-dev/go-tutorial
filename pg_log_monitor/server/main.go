@@ -21,7 +21,9 @@ type LogEntry struct {
 	Timestamp       string `json:"timestamp"`
 	User            string `json:"user"`
 	Dbname          string `json:"dbname"`
+	RemoteHost      string `json:"remote_host"`
 	Message         string `json:"message"`
+	Detail          string `json:"detail"`
 	ApplicationName string `json:"application_name"`
 }
 
@@ -148,7 +150,7 @@ func tailLogFile() {
 				log.Printf("Error parsing JSON log: %v\nLine: %s\n", err, line.Text)
 				continue
 			}
-
+			// PostgreSQL JDBC Driver
 			// Lấy và làm sạch truy vấn từ trường message
 			query := cleanQuery(entry.Message)
 			// Loại bỏ các truy vấn hệ thống liên quan đến pg_catalog hoặc bảng hệ thống
