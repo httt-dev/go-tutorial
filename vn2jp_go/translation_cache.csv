@@ -1,0 +1,14 @@
+So sánh thông tin gửi request,リクエスト送信情報の比較,4
+Giống với Oracle ,「Oracle」と同様,8
+So sánh kết quả trả về,"""返された結果を比較する""",4
+Chạy câu lệnh sau để chuẩn bị data test,次のコマンドを実行してテストデータを準備します,4
+Nhập API Endpoint,「APIエンドポイントを入力」,8
+So sánh câu query,「クエリの比較」,4
+Có dữ liệu trả về,"""返されるデータがあります""",4
+"Confirm việc gọi API với body request có đầy đủ các trường, các trường thì phải có giá trị hợp lệ . ","""API呼び出しを確認し、リクエストボディに全てのフィールドが含まれ、各フィールドには有効な値が設定されていること。""",4
+Thu thập câu truy vấn từ server.log,「server.logからクエリを収集する」,8
+Không có dữ liệu trả về,"""返されるデータがありません""",4
+"Nhập đầy đủ Input data và Request Body, gửi request","""Input dataとRequestBodyを全て入力し、リクエストを送信してください""",8
+Tham khảo tại sheet tương ứng trình bày tại cột 「参考」,「参考」列に示されている対応するシートを参照してください。,4
+Giống với Oracle,「Oracleに似ている」,4
+Xem kết quả trả về bằng winmerge,「WinMergeで返された結果を確認する」,8

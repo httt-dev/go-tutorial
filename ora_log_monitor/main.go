@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"log"
 	"net/http"
 	"regexp"
@@ -14,28 +15,64 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// clientConn holds WebSocket connection and associated userhost
+type clientConn struct {
+	conn     *websocket.Conn
+	userhost string
+}
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true
 	},
 }
 
-var clients = make(map[*websocket.Conn]bool)
+var clients = make(map[*websocket.Conn]clientConn)
 
-// handleWebSocket upgrades HTTP connection to WebSocket
+// AuditMessage defines the structure of the JSON message sent to WebSocket clients
+type AuditMessage struct {
+	Timestamp  string  `json:"timestamp"`
+	Userhost   string  `json:"userhost"`
+	Username   string  `json:"username"`
+	ActionName string  `json:"actionname"`
+	SQL        string  `json:"sql"`
+	SCN        string  `json:"scn"`
+	ErrorMsg   *string `json:"errormsg"`
+}
+
+// handleWebSocket upgrades HTTP connection to WebSocket and associates with userhost
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println("Upgrade error:", err)
+	// Extract userhost from URL path (e.g., /ws/HOA_PC)
+	pathParts := strings.Split(r.URL.Path, "/")
+	userhost := ""
+	if len(pathParts) > 2 {
+		userhost = strings.ToUpper(pathParts[len(pathParts)-1]) // Normalize to uppercase for consistency
+	}
+	if userhost == "" {
+		http.Error(w, "Userhost not provided in URL path", http.StatusBadRequest)
 		return
 	}
-	defer conn.Close()
 
-	clients[conn] = true
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Upgrade error for userhost", userhost, ":", err)
+		return
+	}
+
+	// Store connection with associated userhost
+	clients[conn] = clientConn{conn: conn, userhost: userhost}
+	log.Printf("New WebSocket connection for userhost: %s", userhost)
+
+	defer func() {
+		conn.Close()
+		delete(clients, conn)
+		log.Printf("Closed WebSocket connection for userhost: %s", userhost)
+	}()
+
 	for {
 		_, _, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("Read error:", err)
+			log.Println("Read error for userhost", userhost, ":", err)
 			delete(clients, conn)
 			break
 		}
@@ -43,59 +80,102 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 }
 
 // reconstructQuery replaces bind variables with their values
-func reconstructQuery(sqlText, sqlBind string) string {
+func reconstructQuery(sqlText, sqlBind string) (string, error) {
 	if sqlBind == "" || !strings.Contains(sqlText, ":") {
-		return sqlText
+		return sqlText, nil
 	}
 
-	// 1. Tìm danh sách bind theo tên từ câu SQL (ví dụ :start, :end)
-	bindNameRegex := regexp.MustCompile(`:([a-zA-Z_][a-zA-Z0-9_]*)`)
-	matches := bindNameRegex.FindAllStringSubmatch(sqlText, -1)
+	// Load Asia/Bangkok timezone for datetime parsing
+	bangkokLoc, err := time.LoadLocation("Asia/Bangkok")
+	if err != nil {
+		return "", err
+	}
 
-	var bindNames []string
+	// Regex to detect Oracle datetime format (e.g., 04-JUN-25 07.27.45.379000000 PM)
+	datetimeRegex := regexp.MustCompile(`^\d{2}-[A-Z]{3}-\d{2} \d{2}\.\d{2}\.\d{2}\.\d{6,9} (AM|PM)$`)
+
+	// 1. Lấy danh sách bind variables
+	bindVarRegex := regexp.MustCompile(`:([a-zA-Z_][a-zA-Z0-9_]*|\d+)`)
+	matches := bindVarRegex.FindAllStringSubmatch(sqlText, -1)
+
+	var bindVars []string
 	seen := map[string]bool{}
 	for _, match := range matches {
 		if len(match) > 1 && !seen[match[1]] {
-			bindNames = append(bindNames, match[1])
+			bindVars = append(bindVars, match[1])
 			seen[match[1]] = true
 		}
 	}
 
-	// 2. Tách các bind value theo thứ tự: #1(4):'abc' -> 1:'abc'
-	bindValues := make(map[int]string)
-	bindParts := strings.Fields(sqlBind)
-	for _, part := range bindParts {
-		if strings.Contains(part, ":") {
-			parts := strings.SplitN(part, ":", 2)
-			if len(parts) != 2 {
-				continue
-			}
-			prefix := parts[0] // #1(4)
-			value := parts[1]  // 'abc'
+	// 2. Duyệt thủ công các đoạn bind
+	bindHeaderRegex := regexp.MustCompile(`#\d+\(\d+\):`)
+	locs := bindHeaderRegex.FindAllStringIndex(sqlBind, -1)
 
-			// Extract number from #<num>(...)
-			re := regexp.MustCompile(`#(\d+)\(`)
-			numMatch := re.FindStringSubmatch(prefix)
-			if len(numMatch) == 2 {
-				index := numMatch[1]
-				// Convert index string to int
-				if i, err := strconv.Atoi(index); err == nil {
-					bindValues[i] = value
+	bindValues := make(map[int]string)
+	for i, loc := range locs {
+		start := loc[0]
+		end := len(sqlBind)
+		if i+1 < len(locs) {
+			end = locs[i+1][0]
+		}
+		full := sqlBind[start:end]
+		// full: #1(31):04-JUN-25 07.27.45.379000000 PM
+		parts := strings.SplitN(full, ":", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		header := parts[0] // #1(31)
+		value := strings.TrimSpace(parts[1])
+
+		numRe := regexp.MustCompile(`#(\d+)\(`)
+		numMatch := numRe.FindStringSubmatch(header)
+		if len(numMatch) == 2 {
+			if idx, err := strconv.Atoi(numMatch[1]); err == nil {
+				if value == "" {
+					bindValues[idx] = "NULL" // Handle empty bind value as NULL
+				} else if datetimeRegex.MatchString(value) {
+					// Parse Oracle datetime (e.g., 04-JUN-25 07.27.45.379000000 PM)
+					var parsedTime time.Time
+					// Try with nanoseconds (9 digits)
+					parsedTime, err = time.ParseInLocation("02-JAN-06 03.04.05.999999999 PM", value, bangkokLoc)
+					if err != nil {
+						// Try with microseconds (6 digits)
+						parsedTime, err = time.ParseInLocation("02-JAN-06 03.04.05.999999 PM", value, bangkokLoc)
+						if err != nil {
+							log.Printf("Error parsing datetime %s: %v", value, err)
+							bindValues[idx] = value // Fallback to original value if parsing fails
+							continue
+						}
+					}
+					// Format to 2025-06-04 19:27:45.379
+					bindValues[idx] = parsedTime.Format("2006-01-02 15:04:05.999")
+				} else {
+					bindValues[idx] = value
 				}
 			}
 		}
 	}
 
-	// 3. Gán giá trị vào đúng tên bind theo thứ tự
+	// 3. Thay thế các giá trị vào SQL
 	result := sqlText
-	for i, name := range bindNames {
-		value := bindValues[i+1] // vì bind index bắt đầu từ 1
-		if value != "" {
-			result = strings.Replace(result, ":"+name, value, 1)
+	for i, bindName := range bindVars {
+		bindIndex := i + 1
+		value, exists := bindValues[bindIndex]
+		if !exists {
+			continue // Skip if no bind value found for this index
+		}
+		if value == "NULL" {
+			result = strings.Replace(result, ":"+bindName, "NULL", 1)
+		} else {
+			// Quote string-like values
+			if !(strings.HasPrefix(value, "'") && strings.HasSuffix(value, "'")) {
+				value = "'" + value + "'"
+			}
+			result = strings.Replace(result, ":"+bindName, value, 1)
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 // tailAuditTrail queries DBA_AUDIT_TRAIL and sends results to WebSocket clients
@@ -107,17 +187,11 @@ func tailAuditTrail() {
 	}
 
 	// Connect to Oracle (ORCLPDB1)
-	db, err := sql.Open("godror", "AIPBODEV/Abc12345@localhost:1522/ORCLPDB1?timezone=Asia/Bangkok")
+	db, err := sql.Open("godror", "AIPDEV/Abc12345@192.168.1.116:1522/ORCLPDB1?timezone=Asia/Bangkok")
 	if err != nil {
 		log.Fatalf("Error connecting to Oracle: %v", err)
 	}
 	defer db.Close()
-
-	// // Set session to ORCLPDB1
-	// _, err = db.Exec("ALTER SESSION SET CONTAINER=ORCLPDB1")
-	// if err != nil {
-	// 	log.Fatalf("Error setting container to ORCLPDB1: %v", err)
-	// }
 
 	// Load Asia/Bangkok timezone for Go
 	bangkokLoc, err := time.LoadLocation("Asia/Bangkok")
@@ -125,40 +199,75 @@ func tailAuditTrail() {
 		log.Fatalf("Error loading Asia/Bangkok timezone: %v", err)
 	}
 
-	// Initialize lastTimestamp to a fixed past date
-	lastTimestamp, err := time.ParseInLocation("2006-01-02 15:04:05", "2025-04-27 00:00:00", bangkokLoc)
-	if err != nil {
-		log.Fatalf("Error parsing initial lastTimestamp: %v", err)
-	}
+	// Initialize lastTimestamp to current time
+	lastTimestamp := time.Now().In(bangkokLoc)
 	lastTimestampStr := lastTimestamp.Format("2006-01-02 15:04:05")
 	log.Printf("Initial lastTimestamp: %v, String: %s", lastTimestamp, lastTimestampStr)
 
 	for {
-
 		// Query DBA_AUDIT_TRAIL for SELECT, INSERT, UPDATE, DELETE
 		rows, err := db.Query(`
-            SELECT TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP, USERHOST,USERNAME, SQL_TEXT, SQL_BIND
+            SELECT DISTINCT TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') AS TIMESTAMP, USERHOST, USERNAME, ACTION_NAME, SQL_TEXT, SQL_BIND, SCN
             FROM DBA_AUDIT_TRAIL
             WHERE TO_CHAR(TIMESTAMP, 'YYYY-MM-DD HH24:MI:SS') > :1
               AND ACTION_NAME IN ('SELECT', 'INSERT', 'UPDATE', 'DELETE')
-              AND OWNER IN ('AIPBODEV')
+              AND OWNER IN ('AIPDEV')
               AND (SQL_TEXT NOT LIKE 'SELECT%FROM V$%' AND SQL_TEXT NOT LIKE 'SELECT%FROM DBA_%')
-            ORDER BY TIMESTAMP`, lastTimestampStr)
+            ORDER BY SCN`, lastTimestampStr)
 		if err != nil {
 			log.Printf("Error querying audit trail: %v", err)
+			// Send error message to all relevant clients
+			errorMsg := err.Error()
+			message := AuditMessage{
+				Timestamp:  time.Now().In(bangkokLoc).Format("2006-01-02 15:04:05"),
+				Userhost:   "",
+				Username:   "",
+				ActionName: "",
+				SQL:        "",
+				SCN:        "",
+				ErrorMsg:   &errorMsg,
+			}
+			messageJSON, _ := json.Marshal(message)
+			for client, clientInfo := range clients {
+				err := client.WriteMessage(websocket.TextMessage, messageJSON)
+				if err != nil {
+					log.Println("Write error for userhost", clientInfo.userhost, ":", err)
+					client.Close()
+					delete(clients, client)
+				}
+			}
 			time.Sleep(3 * time.Second)
 			continue
 		}
 
-		// log.Println("Checking Audit Trail data...")
 		rowCount := 0
 		for rows.Next() {
 			var timestampStr string
 			var timestamp time.Time
-			var username, sqlText, sqlBind sql.NullString
-			err := rows.Scan(&timestampStr, &username, &sqlText, &sqlBind)
+			var userhost, username, actionname, sqlText, sqlBind, scn sql.NullString
+			err := rows.Scan(&timestampStr, &userhost, &username, &actionname, &sqlText, &sqlBind, &scn)
 			if err != nil {
 				log.Printf("Error scanning audit row: %v", err)
+				// Send error message to all relevant clients
+				errorMsg := err.Error()
+				message := AuditMessage{
+					Timestamp:  time.Now().In(bangkokLoc).Format("2006-01-02 15:04:05"),
+					Userhost:   "",
+					Username:   "",
+					ActionName: "",
+					SQL:        "",
+					SCN:        "",
+					ErrorMsg:   &errorMsg,
+				}
+				messageJSON, _ := json.Marshal(message)
+				for client, clientInfo := range clients {
+					err := client.WriteMessage(websocket.TextMessage, messageJSON)
+					if err != nil {
+						log.Println("Write error for userhost", clientInfo.userhost, ":", err)
+						client.Close()
+						delete(clients, client)
+					}
+				}
 				continue
 			}
 
@@ -166,11 +275,28 @@ func tailAuditTrail() {
 			timestamp, err = time.ParseInLocation("2006-01-02 15:04:05", timestampStr, bangkokLoc)
 			if err != nil {
 				log.Printf("Error parsing timestampStr %s: %v", timestampStr, err)
+				// Send error message to all relevant clients
+				errorMsg := err.Error()
+				message := AuditMessage{
+					Timestamp:  time.Now().In(bangkokLoc).Format("2006-01-02 15:04:05"),
+					Userhost:   "",
+					Username:   "",
+					ActionName: "",
+					SQL:        "",
+					SCN:        "",
+					ErrorMsg:   &errorMsg,
+				}
+				messageJSON, _ := json.Marshal(message)
+				for client, clientInfo := range clients {
+					err := client.WriteMessage(websocket.TextMessage, messageJSON)
+					if err != nil {
+						log.Println("Write error for userhost", clientInfo.userhost, ":", err)
+						client.Close()
+						delete(clients, client)
+					}
+				}
 				continue
 			}
-
-			// Log the raw TIMESTAMP for debugging
-			// log.Printf("Raw TIMESTAMP String: %s, Parsed: %v", timestampStr, timestamp)
 
 			// Update last timestamp
 			if timestamp.After(lastTimestamp) {
@@ -186,23 +312,48 @@ func tailAuditTrail() {
 
 			// Reconstruct query with bind values
 			query := sqlText.String
+			var errorMsg *string
 			if sqlBind.Valid {
-				query = reconstructQuery(sqlText.String, sqlBind.String)
+				var err error
+				query, err = reconstructQuery(sqlText.String, sqlBind.String)
+				if err != nil {
+					log.Printf("Error reconstructing query: %v", err)
+					errStr := err.Error()
+					errorMsg = &errStr
+				}
 			}
 
 			rowCount++
-			// Send query to WebSocket clients
-			log.Println("Audit Query:", query)
-			for client := range clients {
-				err := client.WriteMessage(websocket.TextMessage, []byte(query))
-				if err != nil {
-					log.Println("Write error:", err)
-					client.Close()
-					delete(clients, client)
+			// Create JSON message
+			message := AuditMessage{
+				Timestamp:  timestampStr,
+				Userhost:   userhost.String,
+				Username:   username.String,
+				ActionName: actionname.String,
+				SQL:        query,
+				SCN:        scn.String,
+				ErrorMsg:   errorMsg,
+			}
+			messageJSON, err := json.Marshal(message)
+			if err != nil {
+				log.Printf("Error marshaling JSON: %v", err)
+				continue
+			}
+
+			// Send JSON message to WebSocket clients with matching userhost
+			log.Println("Audit Message:", string(messageJSON))
+			for client, clientInfo := range clients {
+				log.Printf("Sending message to userhost: %s", clientInfo.userhost)
+				if strings.EqualFold(clientInfo.userhost, userhost.String) {
+					err := client.WriteMessage(websocket.TextMessage, messageJSON)
+					if err != nil {
+						log.Println("Write error for userhost", clientInfo.userhost, ":", err)
+						client.Close()
+						delete(clients, client)
+					}
 				}
 			}
 		}
-		// log.Printf("Audit Trail returned %d rows", rowCount)
 		rows.Close()
 
 		// Log current lastTimestamp for debugging
@@ -216,8 +367,13 @@ func tailAuditTrail() {
 func main() {
 	go tailAuditTrail()
 
-	http.HandleFunc("/ws", handleWebSocket)
-	http.Handle("/", http.FileServer(http.Dir(".")))
+	// Handle WebSocket connections with userhost in path (e.g., /ws/HOA_PC)
+	http.HandleFunc("/ws/", handleWebSocket)
+
+	// Serve index.html for all other requests
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "index.html")
+	})
 
 	log.Println("Server started on :8091")
 	log.Fatal(http.ListenAndServe(":8091", nil))
