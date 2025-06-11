@@ -1,0 +1,28 @@
+{
+  "name": "postgres-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "tasks.max": "1",
+    "database.hostname": "192.168.1.122",
+    "database.port": "5432",
+    "database.user": "postgres",
+    "database.password": "Abc12345",
+    "database.dbname": "pg_bo_ut",
+    "database.server.name": "dbserver_pg",
+    "table.include.list": "public.*",
+    "publication.autocreate.mode": "all_tables",
+    "slot.name": "debezium_slot_bo_api",
+    "plugin.name": "pgoutput",
+    "topic.prefix": "postgres",
+    "snapshot.mode": "never",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter.schemas.enable": "false",
+    "decimal.handling.mode": "string",
+    "provide.transaction.metadata": "true",
+     "topic.creation.enable": "true",
+    "topic.creation.default.replication.factor": "1",
+    "topic.creation.default.partitions": "1",
+    "topic.creation.default.cleanup.policy": "delete",       
+    "topic.creation.default.retention.ms": "86400000"   
+  }
+}

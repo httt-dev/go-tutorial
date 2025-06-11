@@ -1,0 +1,243 @@
+body {
+  font-family: Arial, sans-serif;
+  margin: 0; /* Bỏ margin để chiếm toàn màn hình */
+  background-color: #f4f4f4;
+}
+
+h1 {
+  text-align: center;
+  color: #333;
+  margin: 0px 0; /* Giữ khoảng cách nhỏ cho tiêu đề */
+  background-color: ghostwhite;
+}
+
+.container {
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  height: calc(100vh - 90px); /* Trừ chiều cao của h1 và footer */
+}
+
+.column {
+  width: 50%; /* Chia đôi đều mỗi cột */
+  height: 100%; /* Chiếm toàn chiều cao của container */
+  overflow-y: auto; /* Thêm thanh cuộn dọc nếu nội dung dài */
+  display: flex;
+  flex-flow: column;
+}
+
+.column h2 {
+  text-align: center;
+  color: #2c3e50;
+  margin-bottom: 10px;
+}
+
+.timeline {
+  width: 100%; /* Chiếm toàn chiều rộng của cột */
+  padding: 10px; /* Thêm padding để không sát mép */
+  box-sizing: border-box;
+}
+
+.event {
+  position: relative;
+  margin: 1px 0;
+  padding: 10px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.event::before {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  width: 10px;
+  height: 10px;
+  background: #3498db;
+  border-radius: 50%;
+  transform: translateY(-50%);
+}
+
+.event::after {
+  content: '';
+  position: absolute;
+  left: -6px;
+  top: 50%;
+  width: 2px;
+  height: 50%;
+  background: #3498db;
+  transform: translateY(-50%);
+}
+
+.event:first-child::after {
+  height: 50%;
+  top: 50%;
+}
+
+.event:last-child::after {
+  height: 50%;
+  /*top: 0;*/
+}
+
+.event h3 {
+  margin: 0 0 10px;
+  color: #2c3e50;
+}
+
+.event table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.event th, .event td {
+  padding: 8px;
+  border: 1px solid #ddd;
+  text-align: left;
+  font-size: 14px;
+  word-wrap: break-word; /* Tự động wrap khi dữ liệu dài */
+  white-space: pre-wrap; /* Giữ định dạng và ngắt dòng */
+  max-width: 0; /* Giới hạn chiều rộng để wrap hoạt động */
+}
+
+.event th {
+  background-color: #ecf0f1;
+  color: #333;
+}
+
+.event td:nth-child(2) {
+  background-color: #f9ebeb; /* Màu nền cho cột Before */
+}
+
+.event td:nth-child(3) {
+  background-color: #ebf9eb; /* Màu nền cho cột After */
+}
+
+.event td.highlight {
+  background-color: #f1c40f !important; /* Highlight khác biệt */
+}
+
+/* Header-row đứng yên khi scroll */
+.header-row {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  background-color: ghostwhite;
+  gap: 50px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 10px 0;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+  border-bottom: 1px solid #ddd;
+  
+}
+
+.header-row h2 {
+  margin: 0;
+}
+
+.header-row button {
+  padding: 5px 10px;
+  background-color: #bbadad; /* đỏ */
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.header-row button:hover {
+  background-color: #727272;
+}
+
+/* Footer ngoài container */
+#footer {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  padding: 10px;
+  border-top: 1px solid #ddd;
+  width: 100%;
+  box-sizing: border-box;
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+}
+
+/* Nút trong footer */
+#footer button {
+  padding: 8px 16px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background-color 0.3s ease;
+}
+
+#footer button:hover {
+  background-color: #2980b9;
+}
+
+
+/* Watermark chung cho các bảng */
+.timeline .event table {
+  position: relative;
+  overflow: hidden;
+}
+
+/* Watermark Oracle */
+#oracle-timeline .event table::before {
+  content: "Oracle";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 60px;
+  color: rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Watermark Postgres */
+#postgres-timeline .event table::before {
+  content: "Postgres";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 60px;
+  color: rgba(0, 0, 0, 0.05);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 10;
+}
+
+/* Đảm bảo nội dung table nằm trên watermark */
+.event table td,
+.event table th {
+  position: relative;
+  z-index: 2;
+  background-color: inherit;
+}
+
+.empty-value {
+  color: #ff00fbeb; 
+  font-weight: 100;
+}
+
+{{/* td:empty::after {
+  content: "<<EMPTY>>";
+  color: #e74c3c;
+  font-weight: bold;
+  opacity: 0.8;
+} */}}
+
+
+.null-value {
+  color: #e74c3c; /* đỏ nổi bật */
+  font-weight: 100;
+}

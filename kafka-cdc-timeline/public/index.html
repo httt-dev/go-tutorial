@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Change Event Timeline</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <h1>Change Event Timeline(ver.proto)</h1>
+  <div class="container">
+    <div class="column">
+      <div class="header-row">
+        <h2>Oracle</h2>
+        <button onclick="clearTimeline('oracle')">Clear</button>
+      </div>
+      <div id="oracle-timeline" class="timeline"></div>
+    </div>
+    <div class="column">
+      <div class="header-row">
+        <h2>Postgres</h2>
+        <button onclick="clearTimeline('postgres')">Clear</button>
+      </div>
+      <div id="postgres-timeline" class="timeline"></div>
+    </div>
+  </div>
+
+  <!-- Đặt footer ngoài container -->
+  <div id="footer">
+    <button id="diff-btn"  style="display:none;">Diff</button>
+  </div>
+
+  <script src="index.js"></script>
+  <script src="diff.js"></script>
+</body>

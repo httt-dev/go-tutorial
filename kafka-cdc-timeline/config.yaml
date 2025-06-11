@@ -1,0 +1,18 @@
+kafka:
+  clientId: "cdc-timeline"
+  brokers:
+    - "192.168.1.8:9092"
+  consumerGroups:
+    oracle: "oracle-cdc-group"
+    postgres: "postgres-cdc-group"
+
+kafkaConnect:
+  connectorHost: "http://192.168.1.8:8083"
+
+server:
+  port: 3000
+  websocketPort: 8080
+
+topics:
+  oracle: "oracle.AIPDEV.*"
+  postgres: "postgres.public.*" 

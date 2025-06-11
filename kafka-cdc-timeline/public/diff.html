@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Oracle vs Postgres Diff</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      padding: 0px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .toolbar {
+      text-align: center;
+      margin-bottom: 20px;
+      display:none;
+    }
+    button {
+      padding: 8px 16px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      margin-bottom: 30px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 6px 8px;
+      text-align: left;
+      font-size: 14px;
+      vertical-align: top;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    th {
+      background-color: #eaeaea;
+    }
+    .removed {
+      background-color: #fbb;
+      font-weight: bold;
+    }
+    .added {
+      background-color: #bdf;
+      font-weight: bold;
+    }
+    .same-row {
+      background-color: #e0ffe0;
+    }
+    .diff-row {
+      background-color: #ffe0e0;
+    }
+    .match-item{
+        color: green;
+        font-weight: 900;
+    }
+    .diff-item{
+        color: red;
+        font-weight: 900;
+    }
+  </style>
+</head>
+<body>
+  <h1>Oracle vs PostgreSQL Data Diff</h1>
+
+  <div class="toolbar">
+    <button id="toggleViewBtn">🔄</button>
+  </div>
+
+  <div id="verticalView"></div>
+  <div id="horizontalView" style="display: none;"></div>
+
+  <script src="https://unpkg.com/diff-match-patch/index.js"></script>
+  <script>
+    function normalize(obj) {
+      const result = {};
+      for (const key in obj) {
+        result[key.toLowerCase()] = obj[key];
+      }
+      return result;
+    }
+
+    function escapeHTML(str) {
+      return String(str).replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+      }[m]));
+    }
+
+    function highlightDiff(text1, text2) {
+      const dmp = new diff_match_patch();
+      const diffs = dmp.diff_main(text1, text2);
+      dmp.diff_cleanupSemantic(diffs);
+
+      const html1 = [], html2 = [];
+
+      for (const [op, data] of diffs) {
+        const safe = escapeHTML(data);
+        if (op === 0) {
+          html1.push(safe); html2.push(safe);
+        } else if (op === -1) {
+          html1.push(`<span class="removed">${safe}</span>`);
+        } else if (op === 1) {
+          html2.push(`<span class="added">${safe}</span>`);
+        }
+      }
+
+      return [html1.join(''), html2.join('')];
+    }
+
+    const rawOracle = JSON.parse(sessionStorage.getItem('oracleData'));
+    const rawPostgres = JSON.parse(sessionStorage.getItem('postgresData'));
+
+    const oracle = {
+      before: normalize(rawOracle.before),
+      after: normalize(rawOracle.after)
+    };
+    const postgres = {
+      before: normalize(rawPostgres.before),
+      after: normalize(rawPostgres.after)
+    };
+
+    const fields = Array.from(new Set([
+      ...Object.keys(oracle.before),
+      ...Object.keys(oracle.after),
+      ...Object.keys(postgres.before),
+      ...Object.keys(postgres.after)
+    ])).sort();
+
+    const verticalView = document.getElementById('verticalView');
+    const horizontalView = document.getElementById('horizontalView');
+    const toggleBtn = document.getElementById('toggleViewBtn');
+
+    function renderVertical() {
+      const table = document.createElement('table');
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Oracle Before</th>
+            <th>Postgres Before</th>
+            <th>Oracle After</th>
+            <th>Postgres After</th>
+            <th>Match?</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      `;
+
+      const tbody = table.querySelector('tbody');
+
+      fields.forEach(field => {
+        const oBefore = oracle.before[field] ?? '<<NULL>>';
+        const oAfter = oracle.after[field] ?? '<<NULL>>';
+        const pBefore = postgres.before[field] ?? '<<NULL>>';
+        const pAfter = postgres.after[field] ?? '<<NULL>>';
+
+        const isSameBefore = oBefore === pBefore;
+        const isSameAfter = oAfter === pAfter;
+        const isSame = isSameBefore && isSameAfter;
+
+        let [dOB, dPB] = [escapeHTML(oBefore), escapeHTML(pBefore)];
+        let [dOA, dPA] = [escapeHTML(oAfter), escapeHTML(pAfter)];
+        if (!isSameBefore) [dOB, dPB] = highlightDiff(oBefore, pBefore);
+        if (!isSameAfter) [dOA, dPA] = highlightDiff(oAfter, pAfter);
+
+        const row = document.createElement('tr');
+        row.className = isSame ? 'same-row' : 'diff-row';
+        row.innerHTML = `
+          <td>${field}</td>
+          <td>${dOB}</td>
+          <td>${dPB}</td>
+          <td>${dOA}</td>
+          <td>${dPA}</td>
+          <td class="${isSame ? 'match-item' : 'diff-item'}">${isSame ? '✓' : '✘'}</td>
+        `;
+        tbody.appendChild(row);
+      });
+
+      verticalView.appendChild(table);
+    }
+
+    function renderHorizontal() {
+      const table = document.createElement('table');
+      const thead = document.createElement('thead');
+      const tbody = document.createElement('tbody');
+
+      const header = [''].concat(fields);
+      thead.innerHTML = `<tr>${header.map(f => `<th>${f}</th>`).join('')}</tr>`;
+
+      const rows = [
+        ['Oracle Before'],
+        ['Postgres Before'],
+        ['Oracle After'],
+        ['Postgres After'],
+        ['Match?']
+      ];
+
+      fields.forEach(field => {
+        const oBefore = oracle.before[field] ?? '<<NULL>>';
+        const oAfter = oracle.after[field] ?? '<<NULL>>';
+        const pBefore = postgres.before[field] ?? '<<NULL>>';
+        const pAfter = postgres.after[field] ?? '<<NULL>>';
+
+        const isSameBefore = oBefore === pBefore;
+        const isSameAfter = oAfter === pAfter;
+        const isSame = isSameBefore && isSameAfter;
+
+        let [dOB, dPB] = [escapeHTML(oBefore), escapeHTML(pBefore)];
+        let [dOA, dPA] = [escapeHTML(oAfter), escapeHTML(pAfter)];
+        if (!isSameBefore) [dOB, dPB] = highlightDiff(oBefore, pBefore);
+        if (!isSameAfter) [dOA, dPA] = highlightDiff(oAfter, pAfter);
+
+        rows[0].push(dOB);
+        rows[1].push(dPB);
+        rows[2].push(dOA);
+        rows[3].push(dPA);
+        rows[4].push(isSame ? '✅' : '❌');
+      });
+
+      rows.forEach((r, idx) => {
+        const tr = document.createElement('tr');
+        tr.className = (idx === 4 && r.slice(1).some(val => val === '❌')) ? 'diff-row' : 'same-row';
+        tr.innerHTML = r.map(cell => `<td>${cell}</td>`).join('');
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(thead);
+      table.appendChild(tbody);
+      horizontalView.appendChild(table);
+    }
+
+    // Initial render
+    renderVertical();
+    renderHorizontal();
+
+    let isVertical = true;
+    toggleBtn.addEventListener('click', () => {
+      isVertical = !isVertical;
+      verticalView.style.display = isVertical ? 'block' : 'none';
+      horizontalView.style.display = isVertical ? 'none' : 'block';
+      toggleBtn.textContent = isVertical ? '🔄' : '🔄';
+    });
+
+
+
+  </script>
+</body>
+</html>
