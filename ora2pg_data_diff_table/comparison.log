@@ -1,0 +1,530 @@
+2025/06/14 07:53:44.764833 Loaded configuration:
+2025/06/14 07:53:44.764833   Oracle Table: ms_jan
+2025/06/14 07:53:44.764833   PostgreSQL Table: ms_jan
+2025/06/14 07:53:44.764833   Key Columns: [jan_code]
+2025/06/14 07:53:44.764833 Configuration loaded: &{OracleConnStr:oracle://AIPDEV:Abc12345@192.168.1.5:1522/ORCLPDB1 PostgresConnStr:postgres://postgres:Abc12345@192.168.1.5:5432/bo_dev_jp_utf8 TableOracle:ms_jan TablePostgres:ms_jan WhereClause: KeyColumns:[jan_code] CompareColumns:[] IgnoreColumns:[] WorkerCount:4 BatchSize:100000}
+2025/06/14 07:53:44.804143 Oracle connection pool configured: MaxOpenConns=50, MaxIdleConns=1
+2025/06/14 07:53:44.804143 Connected to Oracle database
+2025/06/14 07:53:44.881126 PostgreSQL connection pool configured: MaxConns=50, MinConns=10
+2025/06/14 07:53:44.881126 Connected to PostgreSQL database
+2025/06/14 07:53:44.881741 Comparer config: &{TableOracle:ms_jan TablePostgres:ms_jan WhereClause: KeyColumns:[jan_code] CompareColumns:[] IgnoreColumns:[]}
+2025/06/14 07:53:44.881741 Starting comparison...
+2025/06/14 07:53:47.043979 Oracle count: 11118343, PostgreSQL count: 11118343
+2025/06/14 07:53:47.054339 Oracle columns: [jan_code wholesaler_category product_name list_price section_sell_category sales_register_genre_code common_grouping_code priority_ranking jan_maker_code maker_code c_code magazine_code tax_category vat_rate_code open_price_flg author_name delete_flg create_user_id create_datetime update_user_id update_datetime delete_user_id delete_datetime selling_date jan_grouping jan_seq_number consideration_selling_ymd model_number]
+2025/06/14 07:53:47.065498 PostgreSQL columns: [delete_datetime create_datetime list_price jan_seq_number update_datetime priority_ranking jan_maker_code maker_code c_code magazine_code tax_category vat_rate_code open_price_flg author_name delete_flg create_user_id update_user_id delete_user_id selling_date jan_grouping consideration_selling_ymd jan_code model_number wholesaler_category product_name section_sell_category sales_register_genre_code common_grouping_code]
+2025/06/14 07:53:47.065987 Filtered columns: [delete_datetime create_datetime list_price jan_seq_number update_datetime priority_ranking jan_maker_code maker_code c_code magazine_code tax_category vat_rate_code open_price_flg author_name delete_flg create_user_id update_user_id delete_user_id selling_date jan_grouping consideration_selling_ymd jan_code model_number wholesaler_category product_name section_sell_category sales_register_genre_code common_grouping_code]
+2025/06/14 07:53:47.065987 Filtered columns: [delete_datetime create_datetime list_price jan_seq_number update_datetime priority_ranking jan_maker_code maker_code c_code magazine_code tax_category vat_rate_code open_price_flg author_name delete_flg create_user_id update_user_id delete_user_id selling_date jan_grouping consideration_selling_ymd jan_code model_number wholesaler_category product_name section_sell_category sales_register_genre_code common_grouping_code]
+2025/06/14 07:53:47.065987 Columns to compare: [delete_datetime create_datetime list_price jan_seq_number update_datetime priority_ranking jan_maker_code maker_code c_code magazine_code tax_category vat_rate_code open_price_flg author_name delete_flg create_user_id update_user_id delete_user_id selling_date jan_grouping consideration_selling_ymd jan_code model_number wholesaler_category product_name section_sell_category sales_register_genre_code common_grouping_code]
+2025/06/14 07:53:47.065987 Starting 4 workers
+2025/06/14 07:53:47.065987 Worker 2 started
+2025/06/14 07:53:47.065987 Worker 1 started
+2025/06/14 07:53:47.065987 Worker 0 started
+2025/06/14 07:53:47.065987 Worker 3 started
+2025/06/14 07:53:47.065987 Sending job for offset 0
+2025/06/14 07:53:47.065987 Sending job for offset 100000
+2025/06/14 07:53:47.065987 Sending job for offset 200000
+2025/06/14 07:53:47.065987 Sending job for offset 300000
+2025/06/14 07:53:47.065987 Sending job for offset 400000
+2025/06/14 07:53:47.065987 Sending job for offset 500000
+2025/06/14 07:53:47.065987 Sending job for offset 600000
+2025/06/14 07:53:47.065987 Sending job for offset 700000
+2025/06/14 07:53:47.065987 Sending job for offset 800000
+2025/06/14 07:53:47.065987 Worker processing batch at offset 100000 with limit 100000
+2025/06/14 07:53:47.065987 Worker processing batch at offset 0 with limit 100000
+2025/06/14 07:53:47.065987 Worker processing batch at offset 200000 with limit 100000
+2025/06/14 07:53:47.065987 Worker processing batch at offset 300000 with limit 100000
+2025/06/14 07:53:47.065987 Sending job for offset 900000
+2025/06/14 07:53:47.065987 Sending job for offset 1000000
+2025/06/14 07:53:47.065987 Sending job for offset 1100000
+2025/06/14 07:53:48.060330 PostgreSQL fetch completed in 994.3425ms: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:48.060330 PostgreSQL fetch completed in 994.3425ms for offset 0
+2025/06/14 07:53:48.552432 PostgreSQL fetch completed in 1.4864443s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:48.552432 PostgreSQL fetch completed in 1.4864443s for offset 100000
+2025/06/14 07:53:48.816345 PostgreSQL fetch completed in 1.7503576s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:48.816345 PostgreSQL fetch completed in 1.7503576s for offset 200000
+2025/06/14 07:53:49.016993 PostgreSQL fetch completed in 1.9510054s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:49.017506 PostgreSQL fetch completed in 1.9515185s for offset 300000
+2025/06/14 07:53:49.486271 Oracle fetch completed in 2.4202833s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:49.486271 Oracle fetch completed in 2.4202833s for offset 0
+2025/06/14 07:53:49.486271 Total fetch time for offset 0: 2.4202833s
+2025/06/14 07:53:49.486271 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:49.889252 Map creation completed in 402.9812ms for offset 0
+2025/06/14 07:53:50.012792 Comparison completed in 123.5401ms for offset 0
+2025/06/14 07:53:50.012792 Total batch processing time for offset 0: 2.9468046s
+2025/06/14 07:53:50.012792 Worker processing batch at offset 400000 with limit 100000
+2025/06/14 07:53:50.012792 Sending job for offset 1200000
+2025/06/14 07:53:50.632713 Oracle fetch completed in 3.5667254s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:50.632713 Oracle fetch completed in 3.5667254s for offset 100000
+2025/06/14 07:53:50.632713 Total fetch time for offset 100000: 3.5667254s
+2025/06/14 07:53:50.632713 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:51.072086 Map creation completed in 439.3738ms for offset 100000
+2025/06/14 07:53:51.206168 Oracle fetch completed in 4.1401804s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:51.206168 Oracle fetch completed in 4.1401804s for offset 200000
+2025/06/14 07:53:51.206168 Total fetch time for offset 200000: 4.1401804s
+2025/06/14 07:53:51.206168 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:51.220113 Comparison completed in 148.0267ms for offset 100000
+2025/06/14 07:53:51.220113 Total batch processing time for offset 100000: 4.1541259s
+2025/06/14 07:53:51.220113 Worker processing batch at offset 500000 with limit 100000
+2025/06/14 07:53:51.220113 Sending job for offset 1300000
+2025/06/14 07:53:51.665717 Map creation completed in 459.5497ms for offset 200000
+2025/06/14 07:53:51.895655 PostgreSQL fetch completed in 1.8828634s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:51.895655 PostgreSQL fetch completed in 1.8828634s for offset 400000
+2025/06/14 07:53:51.912191 Oracle fetch completed in 4.846204s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:51.912191 Oracle fetch completed in 4.846204s for offset 300000
+2025/06/14 07:53:51.912191 Total fetch time for offset 300000: 4.846204s
+2025/06/14 07:53:51.912191 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:51.923795 Comparison completed in 258.0777ms for offset 200000
+2025/06/14 07:53:51.923795 Total batch processing time for offset 200000: 4.8578078s
+2025/06/14 07:53:51.923795 Worker processing batch at offset 600000 with limit 100000
+2025/06/14 07:53:51.923795 Sending job for offset 1400000
+2025/06/14 07:53:52.296898 Map creation completed in 384.7064ms for offset 300000
+2025/06/14 07:53:52.407494 Comparison completed in 110.0816ms for offset 300000
+2025/06/14 07:53:52.407494 Total batch processing time for offset 300000: 5.3415067s
+2025/06/14 07:53:52.407494 Worker processing batch at offset 700000 with limit 100000
+2025/06/14 07:53:52.407494 Sending job for offset 1500000
+2025/06/14 07:53:52.579635 Oracle fetch completed in 2.5668435s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:52.579635 Oracle fetch completed in 2.5668435s for offset 400000
+2025/06/14 07:53:52.579635 Total fetch time for offset 400000: 2.5668435s
+2025/06/14 07:53:52.579635 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:53.108452 Map creation completed in 528.8167ms for offset 400000
+2025/06/14 07:53:53.269000 Comparison completed in 160.5477ms for offset 400000
+2025/06/14 07:53:53.269000 Total batch processing time for offset 400000: 3.2562079s
+2025/06/14 07:53:53.269000 Worker processing batch at offset 800000 with limit 100000
+2025/06/14 07:53:53.269000 Sending job for offset 1600000
+2025/06/14 07:53:53.346069 PostgreSQL fetch completed in 2.1259554s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:53.346069 PostgreSQL fetch completed in 2.1259554s for offset 500000
+2025/06/14 07:53:53.528334 Oracle fetch completed in 2.3082204s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:53.528334 Oracle fetch completed in 2.3082204s for offset 500000
+2025/06/14 07:53:53.528334 Total fetch time for offset 500000: 2.3082204s
+2025/06/14 07:53:53.528334 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:54.089790 Map creation completed in 561.4565ms for offset 500000
+2025/06/14 07:53:54.223585 Comparison completed in 133.7948ms for offset 500000
+2025/06/14 07:53:54.223585 Total batch processing time for offset 500000: 3.0034717s
+2025/06/14 07:53:54.223585 Worker processing batch at offset 900000 with limit 100000
+2025/06/14 07:53:54.223585 Sending job for offset 1700000
+2025/06/14 07:53:54.383558 Oracle fetch completed in 2.4597633s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:54.383558 Oracle fetch completed in 2.4597633s for offset 600000
+2025/06/14 07:53:54.446239 PostgreSQL fetch completed in 2.5224439s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:54.446239 PostgreSQL fetch completed in 2.5224439s for offset 600000
+2025/06/14 07:53:54.446239 Total fetch time for offset 600000: 2.5224439s
+2025/06/14 07:53:54.446239 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:54.929666 Map creation completed in 483.4271ms for offset 600000
+2025/06/14 07:53:55.097688 Comparison completed in 168.0218ms for offset 600000
+2025/06/14 07:53:55.097688 Total batch processing time for offset 600000: 3.1738928s
+2025/06/14 07:53:55.097688 Worker processing batch at offset 1000000 with limit 100000
+2025/06/14 07:53:55.098139 Sending job for offset 1800000
+2025/06/14 07:53:55.201812 Oracle fetch completed in 2.7943177s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:55.201812 Oracle fetch completed in 2.7943177s for offset 700000
+2025/06/14 07:53:55.456320 PostgreSQL fetch completed in 3.0488257s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:55.456320 PostgreSQL fetch completed in 3.0488257s for offset 700000
+2025/06/14 07:53:55.456320 Total fetch time for offset 700000: 3.0488257s
+2025/06/14 07:53:55.456320 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:55.900481 Map creation completed in 444.1612ms for offset 700000
+2025/06/14 07:53:56.027763 Comparison completed in 127.2824ms for offset 700000
+2025/06/14 07:53:56.027763 Total batch processing time for offset 700000: 3.6202693s
+2025/06/14 07:53:56.027763 Worker processing batch at offset 1100000 with limit 100000
+2025/06/14 07:53:56.027763 Sending job for offset 1900000
+2025/06/14 07:53:56.206849 Oracle fetch completed in 2.9373315s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:56.206849 Oracle fetch completed in 2.9378493s for offset 800000
+2025/06/14 07:53:56.898272 PostgreSQL fetch completed in 3.6287548s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:56.898272 PostgreSQL fetch completed in 3.6287548s for offset 800000
+2025/06/14 07:53:56.898272 Total fetch time for offset 800000: 3.6292726s
+2025/06/14 07:53:56.898272 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:57.165904 Oracle fetch completed in 2.9423187s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:57.165904 Oracle fetch completed in 2.9423187s for offset 900000
+2025/06/14 07:53:57.407566 Map creation completed in 509.2932ms for offset 800000
+2025/06/14 07:53:57.665282 Comparison completed in 257.7163ms for offset 800000
+2025/06/14 07:53:57.665282 Total batch processing time for offset 800000: 4.3962821s
+2025/06/14 07:53:57.665282 Worker processing batch at offset 1200000 with limit 100000
+2025/06/14 07:53:57.665282 Sending job for offset 2000000
+2025/06/14 07:53:57.839954 PostgreSQL fetch completed in 3.6163693s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:57.839954 PostgreSQL fetch completed in 3.6163693s for offset 900000
+2025/06/14 07:53:57.839954 Total fetch time for offset 900000: 3.6163693s
+2025/06/14 07:53:57.839954 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:58.218133 Oracle fetch completed in 3.1199946s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:58.218133 Oracle fetch completed in 3.1204453s for offset 1000000
+2025/06/14 07:53:58.370263 Map creation completed in 530.3088ms for offset 900000
+2025/06/14 07:53:58.683270 Comparison completed in 313.0071ms for offset 900000
+2025/06/14 07:53:58.683270 Total batch processing time for offset 900000: 4.4596852s
+2025/06/14 07:53:58.683270 Worker processing batch at offset 1300000 with limit 100000
+2025/06/14 07:53:58.683270 Sending job for offset 2100000
+2025/06/14 07:53:59.381259 PostgreSQL fetch completed in 4.2835712s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:53:59.381259 PostgreSQL fetch completed in 4.2835712s for offset 1000000
+2025/06/14 07:53:59.381259 Total fetch time for offset 1000000: 4.2835712s
+2025/06/14 07:53:59.381259 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:53:59.533369 Oracle fetch completed in 3.5056062s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:53:59.533369 Oracle fetch completed in 3.5056062s for offset 1100000
+2025/06/14 07:53:59.795075 Map creation completed in 413.8156ms for offset 1000000
+2025/06/14 07:54:00.014262 Comparison completed in 219.1873ms for offset 1000000
+2025/06/14 07:54:00.014810 Total batch processing time for offset 1000000: 4.9171226s
+2025/06/14 07:54:00.014810 Worker processing batch at offset 1400000 with limit 100000
+2025/06/14 07:54:00.014810 Sending job for offset 2200000
+2025/06/14 07:54:00.431471 PostgreSQL fetch completed in 4.4037078s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:00.431471 PostgreSQL fetch completed in 4.4037078s for offset 1100000
+2025/06/14 07:54:00.431471 Total fetch time for offset 1100000: 4.4037078s
+2025/06/14 07:54:00.431471 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:00.932070 Map creation completed in 500.5992ms for offset 1100000
+2025/06/14 07:54:01.023606 Oracle fetch completed in 3.3583245s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:01.023606 Oracle fetch completed in 3.3583245s for offset 1200000
+2025/06/14 07:54:01.062875 Comparison completed in 130.8051ms for offset 1100000
+2025/06/14 07:54:01.063880 Total batch processing time for offset 1100000: 5.0361169s
+2025/06/14 07:54:01.063880 Worker processing batch at offset 1500000 with limit 100000
+2025/06/14 07:54:01.063880 Sending job for offset 2300000
+2025/06/14 07:54:02.210450 Oracle fetch completed in 3.52718s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:02.210450 Oracle fetch completed in 3.52718s for offset 1300000
+2025/06/14 07:54:02.341972 PostgreSQL fetch completed in 4.6766903s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:02.341972 PostgreSQL fetch completed in 4.6766903s for offset 1200000
+2025/06/14 07:54:02.341972 Total fetch time for offset 1200000: 4.6766903s
+2025/06/14 07:54:02.341972 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:02.820043 Map creation completed in 478.0707ms for offset 1200000
+2025/06/14 07:54:02.952764 Comparison completed in 132.7212ms for offset 1200000
+2025/06/14 07:54:02.952764 Total batch processing time for offset 1200000: 5.2874822s
+2025/06/14 07:54:02.952764 Worker processing batch at offset 1600000 with limit 100000
+2025/06/14 07:54:02.952764 Sending job for offset 2400000
+2025/06/14 07:54:03.395949 Oracle fetch completed in 3.3811387s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:03.395949 Oracle fetch completed in 3.3811387s for offset 1400000
+2025/06/14 07:54:03.582534 PostgreSQL fetch completed in 4.8992635s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:03.582534 PostgreSQL fetch completed in 4.8992635s for offset 1300000
+2025/06/14 07:54:03.582534 Total fetch time for offset 1300000: 4.8992635s
+2025/06/14 07:54:03.582534 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:04.102027 Map creation completed in 519.4934ms for offset 1300000
+2025/06/14 07:54:04.221534 Comparison completed in 119.5067ms for offset 1300000
+2025/06/14 07:54:04.221534 Total batch processing time for offset 1300000: 5.5382636s
+2025/06/14 07:54:04.221534 Worker processing batch at offset 1700000 with limit 100000
+2025/06/14 07:54:04.221534 Sending job for offset 2500000
+2025/06/14 07:54:04.632107 Oracle fetch completed in 3.5682273s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:04.632107 Oracle fetch completed in 3.5682273s for offset 1500000
+2025/06/14 07:54:05.278331 PostgreSQL fetch completed in 5.2635208s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:05.278331 PostgreSQL fetch completed in 5.2635208s for offset 1400000
+2025/06/14 07:54:05.278331 Total fetch time for offset 1400000: 5.2635208s
+2025/06/14 07:54:05.278331 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:05.761573 Map creation completed in 483.2416ms for offset 1400000
+2025/06/14 07:54:05.893153 Comparison completed in 131.58ms for offset 1400000
+2025/06/14 07:54:05.893153 Total batch processing time for offset 1400000: 5.8783424s
+2025/06/14 07:54:05.893153 Worker processing batch at offset 1800000 with limit 100000
+2025/06/14 07:54:05.893153 Sending job for offset 2600000
+2025/06/14 07:54:06.399765 PostgreSQL fetch completed in 5.335885s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:06.399765 PostgreSQL fetch completed in 5.335885s for offset 1500000
+2025/06/14 07:54:06.399765 Total fetch time for offset 1500000: 5.335885s
+2025/06/14 07:54:06.399765 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:06.640798 Oracle fetch completed in 3.6880337s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:06.640798 Oracle fetch completed in 3.6880337s for offset 1600000
+2025/06/14 07:54:06.884967 Map creation completed in 485.2021ms for offset 1500000
+2025/06/14 07:54:07.021849 Comparison completed in 136.8813ms for offset 1500000
+2025/06/14 07:54:07.022218 Total batch processing time for offset 1500000: 5.9583378s
+2025/06/14 07:54:07.022218 Worker processing batch at offset 1900000 with limit 100000
+2025/06/14 07:54:07.022218 Sending job for offset 2700000
+2025/06/14 07:54:07.670488 Oracle fetch completed in 3.4489545s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:07.670488 Oracle fetch completed in 3.4489545s for offset 1700000
+2025/06/14 07:54:08.499951 PostgreSQL fetch completed in 5.5471872s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:08.499951 PostgreSQL fetch completed in 5.5471872s for offset 1600000
+2025/06/14 07:54:08.499951 Total fetch time for offset 1600000: 5.5471872s
+2025/06/14 07:54:08.499951 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:09.001324 Map creation completed in 501.3726ms for offset 1600000
+2025/06/14 07:54:09.136635 Comparison completed in 135.3112ms for offset 1600000
+2025/06/14 07:54:09.136635 Total batch processing time for offset 1600000: 6.183871s
+2025/06/14 07:54:09.136635 Worker processing batch at offset 2000000 with limit 100000
+2025/06/14 07:54:09.136635 Sending job for offset 2800000
+2025/06/14 07:54:10.183905 Oracle fetch completed in 4.2907522s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:10.183905 Oracle fetch completed in 4.2907522s for offset 1800000
+2025/06/14 07:54:10.235965 PostgreSQL fetch completed in 6.0144314s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:10.235965 PostgreSQL fetch completed in 6.0144314s for offset 1700000
+2025/06/14 07:54:10.235965 Total fetch time for offset 1700000: 6.0144314s
+2025/06/14 07:54:10.235965 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:10.709497 Map creation completed in 473.5319ms for offset 1700000
+2025/06/14 07:54:10.829431 Comparison completed in 119.9342ms for offset 1700000
+2025/06/14 07:54:10.829431 Total batch processing time for offset 1700000: 6.6078975s
+2025/06/14 07:54:10.829431 Worker processing batch at offset 2100000 with limit 100000
+2025/06/14 07:54:10.829431 Sending job for offset 2900000
+2025/06/14 07:54:12.085982 PostgreSQL fetch completed in 6.1928289s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:12.085982 PostgreSQL fetch completed in 6.1928289s for offset 1800000
+2025/06/14 07:54:12.085982 Total fetch time for offset 1800000: 6.1928289s
+2025/06/14 07:54:12.085982 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:12.110107 Oracle fetch completed in 5.0878894s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:12.110107 Oracle fetch completed in 5.0878894s for offset 1900000
+2025/06/14 07:54:12.575879 Map creation completed in 489.8976ms for offset 1800000
+2025/06/14 07:54:12.716484 Comparison completed in 140.6045ms for offset 1800000
+2025/06/14 07:54:12.716484 Total batch processing time for offset 1800000: 6.823331s
+2025/06/14 07:54:12.716484 Worker processing batch at offset 2200000 with limit 100000
+2025/06/14 07:54:12.716484 Sending job for offset 3000000
+2025/06/14 07:54:13.517747 PostgreSQL fetch completed in 6.4955292s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:13.517747 PostgreSQL fetch completed in 6.4955292s for offset 1900000
+2025/06/14 07:54:13.517747 Total fetch time for offset 1900000: 6.4955292s
+2025/06/14 07:54:13.517747 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:13.580752 Oracle fetch completed in 4.4441168s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:13.580752 Oracle fetch completed in 4.4441168s for offset 2000000
+2025/06/14 07:54:14.043578 Map creation completed in 525.8313ms for offset 1900000
+2025/06/14 07:54:14.192857 Comparison completed in 149.2788ms for offset 1900000
+2025/06/14 07:54:14.192857 Total batch processing time for offset 1900000: 7.1706393s
+2025/06/14 07:54:14.192857 Worker processing batch at offset 2300000 with limit 100000
+2025/06/14 07:54:14.192857 Sending job for offset 3100000
+2025/06/14 07:54:15.648109 Oracle fetch completed in 4.8186774s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:15.648109 Oracle fetch completed in 4.8186774s for offset 2100000
+2025/06/14 07:54:16.261591 PostgreSQL fetch completed in 7.1249563s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:16.261591 PostgreSQL fetch completed in 7.1249563s for offset 2000000
+2025/06/14 07:54:16.261591 Total fetch time for offset 2000000: 7.1249563s
+2025/06/14 07:54:16.261591 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:16.729155 Map creation completed in 467.5634ms for offset 2000000
+2025/06/14 07:54:16.866278 Comparison completed in 137.123ms for offset 2000000
+2025/06/14 07:54:16.866278 Total batch processing time for offset 2000000: 7.7296427s
+2025/06/14 07:54:16.866278 Worker processing batch at offset 2400000 with limit 100000
+2025/06/14 07:54:16.866278 Sending job for offset 3200000
+2025/06/14 07:54:18.206936 PostgreSQL fetch completed in 7.3775048s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:18.206936 PostgreSQL fetch completed in 7.3775048s for offset 2100000
+2025/06/14 07:54:18.206936 Total fetch time for offset 2100000: 7.3775048s
+2025/06/14 07:54:18.206936 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:18.479165 Oracle fetch completed in 5.7626808s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:18.479165 Oracle fetch completed in 5.7626808s for offset 2200000
+2025/06/14 07:54:18.752196 Map creation completed in 545.2604ms for offset 2100000
+2025/06/14 07:54:18.928754 Comparison completed in 176.0239ms for offset 2100000
+2025/06/14 07:54:18.928754 Total batch processing time for offset 2100000: 8.0993224s
+2025/06/14 07:54:18.928754 Worker processing batch at offset 2500000 with limit 100000
+2025/06/14 07:54:18.928754 Sending job for offset 3300000
+2025/06/14 07:54:20.100678 Oracle fetch completed in 5.9078205s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:20.100678 Oracle fetch completed in 5.9078205s for offset 2300000
+2025/06/14 07:54:20.473300 PostgreSQL fetch completed in 7.7568161s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:20.473300 PostgreSQL fetch completed in 7.7568161s for offset 2200000
+2025/06/14 07:54:20.473300 Total fetch time for offset 2200000: 7.7568161s
+2025/06/14 07:54:20.473300 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:20.891135 Map creation completed in 417.8349ms for offset 2200000
+2025/06/14 07:54:21.152051 Comparison completed in 260.916ms for offset 2200000
+2025/06/14 07:54:21.152051 Total batch processing time for offset 2200000: 8.435567s
+2025/06/14 07:54:21.152051 Worker processing batch at offset 2600000 with limit 100000
+2025/06/14 07:54:21.152051 Sending job for offset 3400000
+2025/06/14 07:54:22.087020 PostgreSQL fetch completed in 7.8941631s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:22.087020 PostgreSQL fetch completed in 7.8941631s for offset 2300000
+2025/06/14 07:54:22.087020 Total fetch time for offset 2300000: 7.8941631s
+2025/06/14 07:54:22.087020 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:22.624706 Map creation completed in 537.6861ms for offset 2300000
+2025/06/14 07:54:22.781372 Comparison completed in 156.6658ms for offset 2300000
+2025/06/14 07:54:22.781372 Total batch processing time for offset 2300000: 8.588515s
+2025/06/14 07:54:22.781372 Worker processing batch at offset 2700000 with limit 100000
+2025/06/14 07:54:22.781372 Sending job for offset 3500000
+2025/06/14 07:54:25.463194 PostgreSQL fetch completed in 8.5969158s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:25.463194 PostgreSQL fetch completed in 8.5969158s for offset 2400000
+2025/06/14 07:54:27.611082 PostgreSQL fetch completed in 8.6823284s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:27.611082 PostgreSQL fetch completed in 8.6823284s for offset 2500000
+2025/06/14 07:54:28.396657 Oracle fetch completed in 11.5303794s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:28.396657 Oracle fetch completed in 11.5303794s for offset 2400000
+2025/06/14 07:54:28.396657 Total fetch time for offset 2400000: 11.5303794s
+2025/06/14 07:54:28.396657 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:28.888847 Map creation completed in 492.1897ms for offset 2400000
+2025/06/14 07:54:29.016306 Comparison completed in 127.459ms for offset 2400000
+2025/06/14 07:54:29.016306 Total batch processing time for offset 2400000: 12.1500281s
+2025/06/14 07:54:29.016306 Worker processing batch at offset 2800000 with limit 100000
+2025/06/14 07:54:29.016306 Sending job for offset 3600000
+2025/06/14 07:54:29.590662 Oracle fetch completed in 10.6619085s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:29.591172 Oracle fetch completed in 10.6624185s for offset 2500000
+2025/06/14 07:54:29.591172 Total fetch time for offset 2500000: 10.6624185s
+2025/06/14 07:54:29.591172 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:30.143580 Map creation completed in 552.4084ms for offset 2500000
+2025/06/14 07:54:30.175744 PostgreSQL fetch completed in 9.0236929s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:30.175744 PostgreSQL fetch completed in 9.0236929s for offset 2600000
+2025/06/14 07:54:30.270114 Comparison completed in 126.5337ms for offset 2500000
+2025/06/14 07:54:30.270640 Total batch processing time for offset 2500000: 11.3418861s
+2025/06/14 07:54:30.270640 Worker processing batch at offset 2900000 with limit 100000
+2025/06/14 07:54:30.270640 Sending job for offset 3700000
+2025/06/14 07:54:31.392581 Oracle fetch completed in 10.2405306s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:31.392581 Oracle fetch completed in 10.2405306s for offset 2600000
+2025/06/14 07:54:31.392581 Total fetch time for offset 2600000: 10.2405306s
+2025/06/14 07:54:31.392581 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:31.731635 PostgreSQL fetch completed in 8.9502627s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:31.731635 PostgreSQL fetch completed in 8.9502627s for offset 2700000
+2025/06/14 07:54:31.921158 Map creation completed in 528.5768ms for offset 2600000
+2025/06/14 07:54:32.052279 Comparison completed in 131.1208ms for offset 2600000
+2025/06/14 07:54:32.052279 Total batch processing time for offset 2600000: 10.9002282s
+2025/06/14 07:54:32.052279 Worker processing batch at offset 3000000 with limit 100000
+2025/06/14 07:54:32.052279 Sending job for offset 3800000
+2025/06/14 07:54:32.684799 Oracle fetch completed in 9.9034264s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:32.685317 Oracle fetch completed in 9.9039445s for offset 2700000
+2025/06/14 07:54:32.685317 Total fetch time for offset 2700000: 9.9039445s
+2025/06/14 07:54:32.685317 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:33.140432 Map creation completed in 455.1152ms for offset 2700000
+2025/06/14 07:54:33.337006 Comparison completed in 196.5745ms for offset 2700000
+2025/06/14 07:54:33.337006 Total batch processing time for offset 2700000: 10.5556342s
+2025/06/14 07:54:33.337006 Worker processing batch at offset 3100000 with limit 100000
+2025/06/14 07:54:33.337006 Sending job for offset 3900000
+2025/06/14 07:54:38.595979 PostgreSQL fetch completed in 9.579673s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:38.595979 PostgreSQL fetch completed in 9.579673s for offset 2800000
+2025/06/14 07:54:40.287231 PostgreSQL fetch completed in 10.016591s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:40.288243 PostgreSQL fetch completed in 10.017603s for offset 2900000
+2025/06/14 07:54:42.270227 PostgreSQL fetch completed in 10.2179476s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:42.270227 PostgreSQL fetch completed in 10.2179476s for offset 3000000
+2025/06/14 07:54:43.418430 PostgreSQL fetch completed in 10.0814234s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:43.418430 PostgreSQL fetch completed in 10.0814234s for offset 3100000
+2025/06/14 07:54:44.871155 Oracle fetch completed in 15.8548496s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:44.871155 Oracle fetch completed in 15.8548496s for offset 2800000
+2025/06/14 07:54:44.871155 Total fetch time for offset 2800000: 15.8548496s
+2025/06/14 07:54:44.871155 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:45.301005 Oracle fetch completed in 15.0303657s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:45.301005 Oracle fetch completed in 15.0303657s for offset 2900000
+2025/06/14 07:54:45.301005 Total fetch time for offset 2900000: 15.0303657s
+2025/06/14 07:54:45.301005 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:45.328798 Map creation completed in 457.6429ms for offset 2800000
+2025/06/14 07:54:45.484465 Comparison completed in 155.6664ms for offset 2800000
+2025/06/14 07:54:45.484465 Total batch processing time for offset 2800000: 16.4681589s
+2025/06/14 07:54:45.484465 Worker processing batch at offset 3200000 with limit 100000
+2025/06/14 07:54:45.485178 Sending job for offset 4000000
+2025/06/14 07:54:45.884431 Map creation completed in 583.4252ms for offset 2900000
+2025/06/14 07:54:46.007248 Comparison completed in 122.8171ms for offset 2900000
+2025/06/14 07:54:46.007248 Total batch processing time for offset 2900000: 15.736608s
+2025/06/14 07:54:46.007248 Worker processing batch at offset 3300000 with limit 100000
+2025/06/14 07:54:46.007248 Sending job for offset 4100000
+2025/06/14 07:54:46.182120 Oracle fetch completed in 14.1298407s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:46.182120 Oracle fetch completed in 14.1298407s for offset 3000000
+2025/06/14 07:54:46.182120 Total fetch time for offset 3000000: 14.1298407s
+2025/06/14 07:54:46.182120 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:46.613493 Map creation completed in 431.3733ms for offset 3000000
+2025/06/14 07:54:46.820869 Comparison completed in 206.8542ms for offset 3000000
+2025/06/14 07:54:46.820869 Total batch processing time for offset 3000000: 14.7685899s
+2025/06/14 07:54:46.820869 Worker processing batch at offset 3400000 with limit 100000
+2025/06/14 07:54:46.820869 Sending job for offset 4200000
+2025/06/14 07:54:47.363863 Oracle fetch completed in 14.0268564s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:54:47.363863 Oracle fetch completed in 14.0268564s for offset 3100000
+2025/06/14 07:54:47.363863 Total fetch time for offset 3100000: 14.0268564s
+2025/06/14 07:54:47.363863 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:54:47.806762 Map creation completed in 442.8996ms for offset 3100000
+2025/06/14 07:54:47.952766 Comparison completed in 146.0031ms for offset 3100000
+2025/06/14 07:54:47.952766 Total batch processing time for offset 3100000: 14.6157591s
+2025/06/14 07:54:47.952766 Worker processing batch at offset 3500000 with limit 100000
+2025/06/14 07:54:47.952766 Sending job for offset 4300000
+2025/06/14 07:54:56.624812 PostgreSQL fetch completed in 11.1403468s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:56.624812 PostgreSQL fetch completed in 11.1403468s for offset 3200000
+2025/06/14 07:54:57.956527 PostgreSQL fetch completed in 11.9492789s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:57.956527 PostgreSQL fetch completed in 11.9492789s for offset 3300000
+2025/06/14 07:54:58.481025 PostgreSQL fetch completed in 11.6601561s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:58.481025 PostgreSQL fetch completed in 11.6601561s for offset 3400000
+2025/06/14 07:54:59.800496 PostgreSQL fetch completed in 11.8477303s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:54:59.801007 PostgreSQL fetch completed in 11.8482414s for offset 3500000
+2025/06/14 07:55:03.550163 Oracle fetch completed in 18.0649849s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:03.550163 Oracle fetch completed in 18.0656981s for offset 3200000
+2025/06/14 07:55:03.550163 Total fetch time for offset 3200000: 18.0656981s
+2025/06/14 07:55:03.550163 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:03.956381 Map creation completed in 406.2182ms for offset 3200000
+2025/06/14 07:55:04.081230 Comparison completed in 124.8492ms for offset 3200000
+2025/06/14 07:55:04.081753 Total batch processing time for offset 3200000: 18.5972884s
+2025/06/14 07:55:04.081753 Worker processing batch at offset 3600000 with limit 100000
+2025/06/14 07:55:04.081753 Sending job for offset 4400000
+2025/06/14 07:55:04.347129 Oracle fetch completed in 18.339881s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:04.347129 Oracle fetch completed in 18.339881s for offset 3300000
+2025/06/14 07:55:04.347129 Total fetch time for offset 3300000: 18.339881s
+2025/06/14 07:55:04.347129 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:04.989613 Map creation completed in 642.4844ms for offset 3300000
+2025/06/14 07:55:05.131275 Comparison completed in 141.6621ms for offset 3300000
+2025/06/14 07:55:05.131275 Total batch processing time for offset 3300000: 19.1240275s
+2025/06/14 07:55:05.131275 Worker processing batch at offset 3700000 with limit 100000
+2025/06/14 07:55:05.131275 Sending job for offset 4500000
+2025/06/14 07:55:05.217067 Oracle fetch completed in 18.396198s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:05.217067 Oracle fetch completed in 18.396198s for offset 3400000
+2025/06/14 07:55:05.217067 Total fetch time for offset 3400000: 18.396198s
+2025/06/14 07:55:05.217067 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:05.652573 Map creation completed in 435.5063ms for offset 3400000
+2025/06/14 07:55:05.784087 Comparison completed in 131.5133ms for offset 3400000
+2025/06/14 07:55:05.784087 Total batch processing time for offset 3400000: 18.9632176s
+2025/06/14 07:55:05.784087 Worker processing batch at offset 3800000 with limit 100000
+2025/06/14 07:55:05.784087 Sending job for offset 4600000
+2025/06/14 07:55:06.524531 Oracle fetch completed in 18.571765s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:06.524531 Oracle fetch completed in 18.571765s for offset 3500000
+2025/06/14 07:55:06.524531 Total fetch time for offset 3500000: 18.571765s
+2025/06/14 07:55:06.524531 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:06.947513 Map creation completed in 422.9826ms for offset 3500000
+2025/06/14 07:55:07.072127 Comparison completed in 124.6139ms for offset 3500000
+2025/06/14 07:55:07.072127 Total batch processing time for offset 3500000: 19.1193615s
+2025/06/14 07:55:07.072127 Worker processing batch at offset 3900000 with limit 100000
+2025/06/14 07:55:07.072127 Sending job for offset 4700000
+2025/06/14 07:55:15.730873 PostgreSQL fetch completed in 11.6491197s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:15.730873 PostgreSQL fetch completed in 11.6491197s for offset 3600000
+2025/06/14 07:55:16.951110 PostgreSQL fetch completed in 11.8198352s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:16.951110 PostgreSQL fetch completed in 11.8198352s for offset 3700000
+2025/06/14 07:55:17.758820 PostgreSQL fetch completed in 11.9747337s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:17.758820 PostgreSQL fetch completed in 11.9747337s for offset 3800000
+2025/06/14 07:55:19.372652 PostgreSQL fetch completed in 12.3005246s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:19.372652 PostgreSQL fetch completed in 12.3005246s for offset 3900000
+2025/06/14 07:55:23.296169 Oracle fetch completed in 19.2144154s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:23.296169 Oracle fetch completed in 19.2144154s for offset 3600000
+2025/06/14 07:55:23.296169 Total fetch time for offset 3600000: 19.2144154s
+2025/06/14 07:55:23.296169 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:23.778311 Map creation completed in 482.1426ms for offset 3600000
+2025/06/14 07:55:23.902328 Comparison completed in 124.0169ms for offset 3600000
+2025/06/14 07:55:23.902328 Total batch processing time for offset 3600000: 19.8205749s
+2025/06/14 07:55:23.902328 Worker processing batch at offset 4000000 with limit 100000
+2025/06/14 07:55:23.902328 Sending job for offset 4800000
+2025/06/14 07:55:24.278829 Oracle fetch completed in 19.1475534s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:24.278829 Oracle fetch completed in 19.1475534s for offset 3700000
+2025/06/14 07:55:24.278829 Total fetch time for offset 3700000: 19.1475534s
+2025/06/14 07:55:24.278829 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:24.779165 Map creation completed in 500.336ms for offset 3700000
+2025/06/14 07:55:25.024448 Comparison completed in 245.2839ms for offset 3700000
+2025/06/14 07:55:25.024448 Total batch processing time for offset 3700000: 19.8931733s
+2025/06/14 07:55:25.024448 Worker processing batch at offset 4100000 with limit 100000
+2025/06/14 07:55:25.024448 Sending job for offset 4900000
+2025/06/14 07:55:25.161429 Oracle fetch completed in 19.3773427s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:25.161429 Oracle fetch completed in 19.3773427s for offset 3800000
+2025/06/14 07:55:25.161429 Total fetch time for offset 3800000: 19.3773427s
+2025/06/14 07:55:25.161429 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:25.607442 Map creation completed in 446.0123ms for offset 3800000
+2025/06/14 07:55:25.735165 Comparison completed in 127.7236ms for offset 3800000
+2025/06/14 07:55:25.735165 Total batch processing time for offset 3800000: 19.9510786s
+2025/06/14 07:55:25.735165 Worker processing batch at offset 4200000 with limit 100000
+2025/06/14 07:55:25.735165 Sending job for offset 5000000
+2025/06/14 07:55:26.529404 Oracle fetch completed in 19.4572772s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:26.529404 Oracle fetch completed in 19.4572772s for offset 3900000
+2025/06/14 07:55:26.529404 Total fetch time for offset 3900000: 19.4572772s
+2025/06/14 07:55:26.529404 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:26.993000 Map creation completed in 463.596ms for offset 3900000
+2025/06/14 07:55:27.130455 Comparison completed in 137.4543ms for offset 3900000
+2025/06/14 07:55:27.130455 Total batch processing time for offset 3900000: 20.0583275s
+2025/06/14 07:55:27.130455 Worker processing batch at offset 4300000 with limit 100000
+2025/06/14 07:55:27.130455 Sending job for offset 5100000
+2025/06/14 07:55:36.913508 PostgreSQL fetch completed in 13.0111795s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:36.913508 PostgreSQL fetch completed in 13.0111795s for offset 4000000
+2025/06/14 07:55:38.579953 PostgreSQL fetch completed in 13.5555046s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:38.579953 PostgreSQL fetch completed in 13.5555046s for offset 4100000
+2025/06/14 07:55:38.992743 PostgreSQL fetch completed in 13.2575783s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:38.992743 PostgreSQL fetch completed in 13.2575783s for offset 4200000
+2025/06/14 07:55:40.701284 PostgreSQL fetch completed in 13.570829s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:55:40.701284 PostgreSQL fetch completed in 13.570829s for offset 4300000
+2025/06/14 07:55:47.587829 Oracle fetch completed in 23.6855009s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:47.587829 Oracle fetch completed in 23.6855009s for offset 4000000
+2025/06/14 07:55:47.587829 Total fetch time for offset 4000000: 23.6855009s
+2025/06/14 07:55:47.587829 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:48.358394 Map creation completed in 770.5655ms for offset 4000000
+2025/06/14 07:55:48.525380 Comparison completed in 166.9851ms for offset 4000000
+2025/06/14 07:55:48.526354 Total batch processing time for offset 4000000: 24.624026s
+2025/06/14 07:55:48.526354 Worker processing batch at offset 4400000 with limit 100000
+2025/06/14 07:55:48.526354 Sending job for offset 5200000
+2025/06/14 07:55:48.654849 Oracle fetch completed in 23.6304003s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:48.654849 Oracle fetch completed in 23.6304003s for offset 4100000
+2025/06/14 07:55:48.654849 Total fetch time for offset 4100000: 23.6304003s
+2025/06/14 07:55:48.654849 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:49.333407 Oracle fetch completed in 23.598242s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:49.333407 Oracle fetch completed in 23.598242s for offset 4200000
+2025/06/14 07:55:49.333407 Total fetch time for offset 4200000: 23.598242s
+2025/06/14 07:55:49.333407 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:49.359512 Map creation completed in 704.6635ms for offset 4100000
+2025/06/14 07:55:49.700379 Comparison completed in 340.8667ms for offset 4100000
+2025/06/14 07:55:49.700379 Total batch processing time for offset 4100000: 24.6759305s
+2025/06/14 07:55:49.700379 Worker processing batch at offset 4500000 with limit 100000
+2025/06/14 07:55:49.700379 Sending job for offset 5300000
+2025/06/14 07:55:50.125543 Map creation completed in 792.136ms for offset 4200000
+2025/06/14 07:55:50.294111 Comparison completed in 168.5678ms for offset 4200000
+2025/06/14 07:55:50.294111 Total batch processing time for offset 4200000: 24.5589458s
+2025/06/14 07:55:50.294111 Worker processing batch at offset 4600000 with limit 100000
+2025/06/14 07:55:50.294111 Sending job for offset 5400000
+2025/06/14 07:55:50.855546 Oracle fetch completed in 23.7250913s: 100000 records, query: SELECT /*+ FIRST_ROWS(100000) */ delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET :1 ROWS FETCH NEXT :2 ROWS ONLY
+2025/06/14 07:55:50.855546 Oracle fetch completed in 23.7250913s for offset 4300000
+2025/06/14 07:55:50.855546 Total fetch time for offset 4300000: 23.7250913s
+2025/06/14 07:55:50.855546 Fetched 100000 records from Oracle and 100000 from PostgreSQL
+2025/06/14 07:55:51.339107 Map creation completed in 483.5608ms for offset 4300000
+2025/06/14 07:55:51.483747 Comparison completed in 144.6403ms for offset 4300000
+2025/06/14 07:55:51.483747 Total batch processing time for offset 4300000: 24.3532924s
+2025/06/14 07:55:51.483747 Worker processing batch at offset 4700000 with limit 100000
+2025/06/14 07:55:51.483747 Sending job for offset 5500000
+2025/06/14 07:56:13.107818 PostgreSQL fetch completed in 24.5814641s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:56:13.107818 PostgreSQL fetch completed in 24.5814641s for offset 4400000
+2025/06/14 07:56:13.860456 PostgreSQL fetch completed in 24.1600774s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:56:13.860456 PostgreSQL fetch completed in 24.1600774s for offset 4500000
+2025/06/14 07:56:15.441270 PostgreSQL fetch completed in 25.1471591s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:56:15.441270 PostgreSQL fetch completed in 25.1471591s for offset 4600000
+2025/06/14 07:56:16.635970 PostgreSQL fetch completed in 25.1522233s: 100000 records, query: SELECT delete_datetime,create_datetime,list_price,jan_seq_number,update_datetime,priority_ranking,jan_maker_code,maker_code,c_code,magazine_code,tax_category,vat_rate_code,open_price_flg,author_name,delete_flg,create_user_id,update_user_id,delete_user_id,selling_date,jan_grouping,consideration_selling_ymd,jan_code,model_number,wholesaler_category,product_name,section_sell_category,sales_register_genre_code,common_grouping_code FROM ms_jan ORDER BY jan_code OFFSET $1 LIMIT $2
+2025/06/14 07:56:16.635970 PostgreSQL fetch completed in 25.1522233s for offset 4700000

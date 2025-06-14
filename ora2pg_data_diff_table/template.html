@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Table Comparison Result</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .different { background-color: #ffe6e6; }
+        .highlight { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h2>Table Comparison Result</h2>
+    {{ if .IsIdentical }}
+        <p class="highlight">Data of the two tables is identical.</p>
+    {{ else }}
+        <p class="highlight">Found {{ len .Differences }} differences.</p>
+        <table>
+            <tr>
+                <th>Key</th>
+                <th>Values</th>
+                <th>Different Fields</th>
+            </tr>
+            {{ range .Differences }}
+                <tr class="{{ if .IsDifferent }}different{{ end }}">
+                    <td>{{ .KeyValues }}</td>
+                    <td>{{ .ColValues }}</td>
+                    <td>{{ .DiffFields }}</td>
+                </tr>
+            {{ end }}
+        </table>
+    {{ end }}
+</body>
+</html>
