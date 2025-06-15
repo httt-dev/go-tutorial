@@ -1,6 +1,6 @@
 {
     "editor.mouseWheelZoom": true,
-    "workbench.colorTheme": "Dracula Theme",
+    "workbench.colorTheme": "Ayu Mirage Bordered",
     "editor.fontLigatures": true,
     // "[javascript]": {
     //   "editor.defaultFormatter": "esbenp.prettier-vscode"

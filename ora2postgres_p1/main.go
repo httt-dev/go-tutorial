@@ -246,22 +246,6 @@ func worker(ctx context.Context, workerId int, batchSize int, db *pgxpool.Pool, 
 		}
 	}
 
-	// for row := range dataChan {
-	//     batch = append(batch, row)
-	//     if len(batch) >= batchSize {
-	//         if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
-	//             errorChan <- fmt.Errorf("Worker %d: error inserting batch: %v", workerId, err)
-	//         }
-	//         batch = batch[:0]
-	//     }
-	// }
-	// // Insert remaining data in the batch
-	// if len(batch) > 0 {
-	//     if err := insertBatchWithFallback(db, dstTable, columns, columnTypes, batch); err != nil {
-	//         errorChan <- fmt.Errorf("Worker %d: error inserting last batch: %v", workerId, err)
-	//     }
-	// }
-	// log.Printf("Worker %d: finished processing", workerId)
 }
 
 // createOraclePool creates a connection pool for Oracle using sijms/go-ora
@@ -277,15 +261,16 @@ func createOraclePool(dsn string) (*sql.DB, error) {
 		return nil, fmt.Errorf("error connecting to Oracle: %w", err)
 	}
 
-	// Set pooling options (if needed)
-	db.SetMaxOpenConns(20)                  // Maximum number of open connections
+	// Set pooling options
+	// db.SetConnMaxIdleTime(30 * time.Second) // Maximum idle connection time
+	db.SetMaxOpenConns(100)                  // Maximum number of open connections
 	db.SetMaxIdleConns(5)                   // Maximum number of idle connections
 	db.SetConnMaxLifetime(60 * time.Second) // Maximum connection lifetime
 
 	// Test the connection
 	if err = db.Ping(); err != nil {
 		db.Close()
-		return nil, fmt.Errorf("error testing connection: %w", err)
+		return nil, fmt.Errorf("error ping connection: %w", err)
 	}
 
 	log.Println("Successfully connected to Oracle.")
@@ -300,7 +285,7 @@ func createPostgresPool(pgDSN string) (*pgxpool.Pool, error) {
 		return nil, fmt.Errorf("failed to parse postgres config: %w", err)
 	}
 
-	config.MaxConns = 20
+	config.MaxConns = 100
 	config.MinConns = 5
 	config.MaxConnLifetime = time.Hour
 	config.MaxConnIdleTime = 30 * time.Minute
@@ -314,7 +299,7 @@ func createPostgresPool(pgDSN string) (*pgxpool.Pool, error) {
 	// Test the connection
 	if err = pool.Ping(context.Background()); err != nil {
 		pool.Close()
-		return nil, fmt.Errorf("error testing connection: %w", err)
+		return nil, fmt.Errorf("error ping connection: %w", err)
 	}
 
 	log.Println("Successfully connected to Postgres.")
@@ -415,33 +400,7 @@ func enableLogging(db *pgxpool.Pool, tableName string) error {
 	log.Printf("Enabled triggers for table: %s", actualTableName)
 	return nil
 }
-
-// parseTableMappings parses the table mappings from the input string
-// The input string should be in the format "src_table:dst_table, src_table2:dst_table2"
-// If the destination table is not specified, it defaults to the source table name
-// Example: "src_table1:dst_table1, src_table2" will map src_table1 to dst_table1 and src_table2 to src_table2
-// The function returns a map where the keys are source table names and the values are destination table names
-// If the input string is empty, it returns an empty map
-// If the input string is not in the correct format, it returns an error
-// func parseTableMappings(tableNames string) map[string]string {
-//     mappings := make(map[string]string)
-//     tables := strings.Split(tableNames, ",")
-//     for _, table := range tables {
-//         table = strings.TrimSpace(table)
-//         if table == "" {
-//             continue
-//         }
-//         parts := strings.Split(table, ":")
-//         srcTable := strings.TrimSpace(parts[0])
-//         dstTable := strings.ToLower(srcTable)
-//         if len(parts) > 1 {
-//             dstTable = strings.TrimSpace(parts[1])
-//         }
-//         mappings[srcTable] = dstTable
-//     }
-//     return mappings
-// }
-
+// parseTableMappings parses the table names from the environment variable TABLE_NAME
 func parseTableMappings(tableNames string) []TableMapping {
 	var mappings []TableMapping
 	tables := strings.Split(tableNames, ",")
@@ -470,7 +429,7 @@ func extractTableName(table string) string {
 	}
 	return ""
 }
-
+// printSummary prints a summary of the data migration process
 func printSummary() {
 	log.Println("=== SUMMARY ===")
 	log.Printf("%-40s %-15s %-40s %-15s %-10s\n", "Source Table", "Source Rows", "Destination Table", "Copied Rows", "Status")
@@ -533,7 +492,7 @@ func decodeShiftJIS(input string) (string, error) {
 	}
 	return string(decoded), nil
 }
-
+// hasClobColumn checks if the specified table has a CLOB column
 func hasClobColumn(db *sql.DB, tableName string) (bool, error) {
 	query := `
         SELECT COUNT(*)
@@ -633,6 +592,7 @@ func buildPostgresDSN() string {
 // 	return db, nil
 // }
 
+// setSessionRepliRole sets the session_replication_role in PostgreSQL
 func setSessionRepliRole(db *pgxpool.Pool, value string) error {
 	// Enable triggers on the table
 	ctx := context.Background()
@@ -645,6 +605,7 @@ func setSessionRepliRole(db *pgxpool.Pool, value string) error {
 	return nil
 }
 
+// main is the entry point of the application
 func main() {
 	// Set up logging
 	setupLogging()
@@ -683,6 +644,9 @@ func main() {
 	log.Printf("List of tables to copy:\n%v\n", string(tbl))
 
 	partitionBy := os.Getenv("PARTITION_BY")
+	if partitionBy == "" {
+		partitionBy = "rownum"
+	}
 	partitionColumn := os.Getenv("PARTITION_COLUMN")
 	filterWhere := os.Getenv("FILTER")
 	if strings.TrimSpace(filterWhere) == "" {
@@ -750,6 +714,7 @@ func main() {
 	log.Printf("Data migration completed.")
 }
 
+// migrateTable migrates data from the source Oracle table to the destination PostgreSQL table
 func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB, dstDB *pgxpool.Pool, srcTable string, dstTable string, partitionBy string, partitionColumn string, filterWhere string) error {
 	var sourceRowCount, copiedRowCount int64
 	var migrationError error
@@ -783,18 +748,6 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 	for i, col := range columnsInfo {
 		columns[i] = col.Name
 	}
-
-	// // Retrieve column names from Oracle
-	// dummyQuery := fmt.Sprintf("SELECT * FROM %s WHERE 1=0", srcTable)
-	// dummyRows, err := srcDB.Query(dummyQuery)
-	// if err != nil {
-	//     log.Fatalf("Error executing dummy query: %v", err)
-	// }
-	// columns, err := dummyRows.Columns()
-	// if err != nil {
-	//     log.Fatalf("Error getting columns: %v", err)
-	// }
-	// dummyRows.Close()
 
 	for i, col := range columns {
 		columns[i] = strings.ToLower(col)
@@ -844,7 +797,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 			log.Fatalf("Error retrieving total rows %v from query: %v", err, countQuery)
 			migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
 		}
-		log.Printf("Total rows: %d", totalRows)
+		log.Printf("Total rows: %s", totalRows)
 
 		sourceRowCount = totalRows
 		partitionCount = numWorkers
@@ -868,7 +821,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 					if r := recover(); r != nil {
 						log.Printf("Partition %d: Panic occurred! Error: %v", partitionId, r)
 					}
-					log.Printf("call done()")
+					log.Printf("Partition %d: done", partitionId)
 					partitionWg.Done()
 				}()
 
@@ -936,7 +889,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 					if err := rows.Scan(scanArgs...); err != nil {
 						log.Printf("Partition %d: row scan error: %v", partitionId, err)
 						migrationError = fmt.Errorf("Partition %d: row scan error: %v", partitionId, err)
-						continue
+						return
 					}
 					rowData := make([]interface{}, colCount)
 					// for i, ptr := range scanArgs {
@@ -974,149 +927,7 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 
 		partitionWg.Wait()
 
-	} else if partitionColumn != "" {
-		// NOT TEST !!!!
-		var minVal, maxVal int64
-		queryMinMax := fmt.Sprintf("SELECT MIN(%s), MAX(%s) FROM %s", partitionColumn, partitionColumn, srcTable)
-		row := srcDB.QueryRow(queryMinMax)
-		if err := row.Scan(&minVal, &maxVal); err != nil {
-			log.Fatalf("Error scanning min/max from Oracle: %v", err)
-			migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
-		}
-		log.Printf("Minimum and maximum values of %s: %d - %d", partitionColumn, minVal, maxVal)
-
-		partitionCount = numWorkers
-
-		rangeSize := (maxVal - minVal + 1) / int64(partitionCount)
-		if rangeSize == 0 {
-			rangeSize = 1
-		}
-
-		var partitionWg sync.WaitGroup
-		for i := 0; i < partitionCount; i++ {
-			startVal := minVal + int64(i)*rangeSize
-			var endVal int64
-			if i == partitionCount-1 {
-				endVal = maxVal
-			} else {
-				endVal = startVal + rangeSize - 1
-			}
-			partitionWg.Add(1)
-			go func(startVal, endVal int64, partitionId int) {
-				defer partitionWg.Done()
-				query := fmt.Sprintf("SELECT * FROM %s WHERE %s BETWEEN %d AND %d", srcTable, partitionColumn, startVal, endVal)
-				rows, err := srcDB.Query(query)
-				if err != nil {
-					log.Printf("Partition %d: query execution error: %v", partitionId, err)
-					migrationError = fmt.Errorf("Partition %d: query error: %v", partitionId, err)
-
-					return
-				}
-				defer rows.Close()
-
-				colCount := len(columns)
-				count := 0
-				scanArgs := make([]interface{}, colCount)
-				for i := range scanArgs {
-					scanArgs[i] = new(interface{})
-				}
-				rowData := make([]interface{}, colCount)
-				for rows.Next() {
-					if err := rows.Scan(scanArgs...); err != nil {
-						log.Printf("Partition %d: row scan error: %v", partitionId, err)
-						migrationError = fmt.Errorf("Partition %d: row scan error: %v", partitionId, err)
-
-						continue
-					}
-
-					for i, ptr := range scanArgs {
-						rowData[i] = *(ptr.(*interface{}))
-					}
-					dataChan <- rowData
-					count++
-					if count%logReadedRows == 0 {
-						log.Printf("Partition %d: Read %d rows", partitionId, count)
-					}
-				}
-				if err := rows.Err(); err != nil {
-					log.Printf("Partition %d: error iterating over rows: %v", partitionId, err)
-					migrationError = fmt.Errorf("Partition %d: error iterating over rows: %v", partitionId, err)
-				}
-				log.Printf("Partition %d: finished reading, total rows: %d", partitionId, count)
-			}(startVal, endVal, i)
-		}
-		partitionWg.Wait()
-	} else {
-		// NOT TEST !!!!
-		query := fmt.Sprintf("SELECT * FROM %s WHERE 1=1 %s", srcTable, filterWhere)
-		rows, err := srcDB.Query(query)
-		if err != nil {
-			log.Fatalf("Error executing query on Oracle: %v", err)
-			migrationError = fmt.Errorf("Error retrieving total rows: %v", err)
-		}
-		defer rows.Close()
-
-		colCount := len(columns)
-		colTypes, _ := rows.ColumnTypes()
-		count := 0
-		scanArgs := make([]interface{}, colCount)
-		// for i := range scanArgs {
-		//     scanArgs[i] = new(interface{})
-		// }
-		for i := 0; i < colCount; i++ {
-			dbType := colTypes[i].DatabaseTypeName()
-			switch dbType {
-			case "VARCHAR2", "VARCHAR", "CHAR", "NCHAR", "NVARCHAR2", "TEXT", "CLOB": //CLOB??
-				var s sql.NullString
-				scanArgs[i] = &s // use sql.NullString to handle NULL values
-			default:
-				var raw interface{}
-				scanArgs[i] = &raw
-			}
-		}
-		for rows.Next() {
-			select {
-			case <-ctx.Done():
-				log.Printf("Received cancellation signal while processing rows, stopping...")
-				break
-			default:
-				// continue if no cancellation signal
-			}
-
-			if err := rows.Scan(scanArgs...); err != nil {
-				log.Printf("Error scanning row: %v", err)
-				migrationError = fmt.Errorf("Error scanning row: %v", err)
-
-				continue
-			}
-			rowData := make([]interface{}, colCount)
-			// for i, ptr := range scanArgs {
-			//     rowData[i] = *(ptr.(*interface{}))
-			// }
-			for i, v := range scanArgs {
-				switch val := v.(type) {
-				case *sql.NullString:
-					if val.Valid {
-						rowData[i] = maybeDecodeShiftJIS(val.String)
-					} else {
-						rowData[i] = nil
-					}
-				default:
-					rowData[i] = *(v.(*interface{}))
-				}
-			}
-
-			dataChan <- rowData
-			count++
-			if count%logReadedRows == 0 {
-				log.Printf("Read %d rows from Oracle", count)
-			}
-		}
-		if err = rows.Err(); err != nil {
-			log.Fatalf("Error iterating over rows: %v", err)
-			migrationError = fmt.Errorf("Error iterating over rows: %v", err)
-		}
-	}
+	} 
 
 	log.Printf("Closing channel for table: %s", srcTable)
 	// Close the channel after reading is complete
@@ -1136,9 +947,9 @@ func migrateTable(ctx context.Context, cancel context.CancelFunc, srcDB *sql.DB,
 	}
 
 	// Add summary to the list
-	status := "Success"
+	status := "\033[32m✔ Success\033[0m"
 	if migrationError != nil {
-		status = "Failed"
+		status = "\033[31m✗ Failed\033[0m"
 	}
 	summaryList = append(summaryList, TableSummary{
 		SourceTable:      srcTable,
