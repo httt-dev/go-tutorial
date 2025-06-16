@@ -1,0 +1,43 @@
+{
+    "editor.mouseWheelZoom": true,
+    "workbench.colorTheme": "Visual Studio Light",
+    "editor.fontLigatures": true,
+    // "[javascript]": {
+    //   "editor.defaultFormatter": "esbenp.prettier-vscode"
+    // },
+    // "editor.renderWhitespace": "all",
+    // "php.executablePath": "/usr/local/bin/php",
+    
+    // "java.jdt.ls.java.home": "c:\\Program Files (x86)\\Java\\jdk1.8.0_111",
+    // "java.configuration.runtimes": [],
+    // "go.alternateTools": {
+  
+    // },
+    // "[python]": {
+    //   "editor.formatOnType": true
+    // },
+    "files.autoGuessEncoding": true,
+    "workbench.tree.indent": 20,
+    "editor.fontFamily": "'MesloLGS NF, Regular','Fira Code',Consolas, 'Courier New',Monoid, monospace",
+    "terminal.integrated.env.windows": {},
+    // "go.toolsEnvVars": {
+    //   "GO111MODULE": "off"
+    // },
+    // "go.goroot": "C:\\Users\\Hoa-NX\\go\\go1.16.6",
+    // "go.gopath": "D:\\workspace\\VJP\\OEA\\webpos\\_test_use_vscode\\RELEASE\\SRC\\GOLIB;D:\\workspace\\VJP\\OEA\\webpos\\_test_use_vscode\\RELEASE\\SRC\\WebPOS",
+    // "go.testFlags": [],
+    // "go.languageServerExperimentalFeatures": {
+    //   "codelens": true
+    // },
+    // "go.tests": {
+    //   "showCodeLens": "never"
+    // },
+    "editor.codeActionsOnSave": {},
+    "editor.formatOnSaveMode": "modifications",
+    "editor.unicodeHighlight.invisibleCharacters": false,
+    "editor.unicodeHighlight.ambiguousCharacters": false,
+    "terminal.integrated.fontFamily": "monospace",
+    "editor.fontWeight": "normal",
+    "console-ninja.featureSet": "Community",
+    
+  }
